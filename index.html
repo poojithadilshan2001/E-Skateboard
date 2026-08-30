@@ -1,0 +1,4439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>Smart Electric Skateboard</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+<style>
+
+:root {
+    --bg: #070b12;
+    --card: #111827;
+    --card2: #151d2d;
+    --border: #263247;
+    --cyan: #00e5ff;
+    --green: #00e676;
+    --yellow: #ffb300;
+    --red: #ff3d00;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: white;
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+}
+
+body {
+    min-height: 100vh;
+}
+
+button {
+    -webkit-tap-highlight-color: transparent;
+}
+
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #263247;
+    border-radius: 20px;
+}
+
+.app {
+    max-width: 700px;
+    margin: auto;
+    min-height: 100vh;
+    background:
+        radial-gradient(
+            circle at 50% -20%,
+            rgba(0,229,255,.10),
+            transparent 35%
+        ),
+        var(--bg);
+}
+
+.glass {
+    background:
+        linear-gradient(
+            145deg,
+            rgba(21,29,45,.96),
+            rgba(13,19,31,.96)
+        );
+
+    border: 1px solid rgba(62,78,105,.45);
+    box-shadow:
+        0 8px 30px rgba(0,0,0,.25);
+}
+
+.metric {
+    transition: .2s ease;
+}
+
+.metric:active {
+    transform: scale(.98);
+}
+
+.cyan {
+    color: var(--cyan);
+}
+
+.green {
+    color: var(--green);
+}
+
+.yellow {
+    color: var(--yellow);
+}
+
+.red {
+    color: var(--red);
+}
+
+.glow {
+    box-shadow:
+        0 0 30px rgba(0,229,255,.10);
+}
+
+.speed-ring {
+    position: relative;
+    width: 270px;
+    height: 270px;
+}
+
+.speed-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.speed-track {
+    fill: none;
+    stroke: #202b3e;
+    stroke-width: 9;
+}
+
+.speed-progress {
+    fill: none;
+    stroke: var(--cyan);
+    stroke-width: 9;
+    stroke-linecap: round;
+
+    stroke-dasharray: 754;
+    stroke-dashoffset: 754;
+
+    transition:
+        stroke-dashoffset .25s ease,
+        stroke .25s ease;
+}
+
+.speed-center {
+    position: absolute;
+    inset: 0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+
+    width: min(700px, 100%);
+
+    background: rgba(11,16,27,.96);
+    backdrop-filter: blur(20px);
+
+    border-top: 1px solid #263247;
+
+    z-index: 50;
+}
+
+.nav button {
+    color: #718096;
+}
+
+.nav button.active {
+    color: var(--cyan);
+}
+
+.page {
+    display: none;
+    padding-bottom: 100px;
+}
+
+.page.active {
+    display: block;
+}
+
+.mode-btn {
+    border: 1px solid #334155;
+    background: #101827;
+    transition: .2s ease;
+}
+
+.mode-btn.active {
+    border-color: var(--cyan);
+    background: rgba(0,229,255,.10);
+    box-shadow: 0 0 20px rgba(0,229,255,.08);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #64748b;
+}
+
+.status-dot.online {
+    background: var(--green);
+    box-shadow: 0 0 10px var(--green);
+}
+
+.status-dot.warning {
+    background: var(--yellow);
+    box-shadow: 0 0 10px var(--yellow);
+}
+
+.status-dot.danger {
+    background: var(--red);
+    box-shadow: 0 0 10px var(--red);
+}
+
+.chart-box {
+    height: 220px;
+}
+
+.small-chart {
+    height: 170px;
+}
+
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 90px;
+
+    transform:
+        translateX(-50%)
+        translateY(20px);
+
+    background: #172033;
+    border: 1px solid #334155;
+
+    padding: 11px 16px;
+    border-radius: 12px;
+
+    opacity: 0;
+    pointer-events: none;
+
+    transition: .25s ease;
+
+    z-index: 100;
+}
+
+.toast.show {
+    opacity: 1;
+    transform:
+        translateX(-50%)
+        translateY(0);
+}
+
+.warning-banner {
+    animation: pulseWarning 1.8s infinite;
+}
+
+@keyframes pulseWarning {
+
+    0%,100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: .65;
+    }
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<!-- ========================================================= -->
+<!-- HEADER -->
+<!-- ========================================================= -->
+
+<header class="sticky top-0 z-40
+               bg-[#0b101a]/95 backdrop-blur-xl
+               border-b border-slate-800">
+
+    <div class="px-4 py-3 flex items-center justify-between">
+
+        <div class="flex items-center gap-3">
+
+            <div class="w-10 h-10 rounded-xl
+                        bg-cyan-400/10
+                        border border-cyan-400/30
+                        flex items-center justify-center">
+
+                <i class="fa-solid fa-bolt cyan"></i>
+
+            </div>
+
+            <div>
+
+                <div class="text-sm font-black tracking-wide">
+                    SMART ELECTRIC SKATEBOARD
+                </div>
+
+                <div class="text-[10px] text-slate-500">
+                    Poojitha Dilshan
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="flex items-center gap-2">
+
+            <div class="flex items-center gap-1.5
+                        px-2 py-1 rounded-full
+                        bg-slate-900 border border-slate-700">
+
+                <span id="connectionDot"
+                      class="status-dot"></span>
+
+                <span id="connectionText"
+                      class="text-[9px] font-bold">
+                    SIMULATION
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</header>
+
+
+<!-- ========================================================= -->
+<!-- HOME -->
+<!-- ========================================================= -->
+
+<section id="page-home" class="page active px-4 pt-4">
+
+    <!-- CONNECTION -->
+    <div class="glass rounded-2xl p-4 mb-4">
+
+        <div class="flex items-center justify-between">
+
+            <div>
+
+                <div class="text-[10px] text-slate-500 uppercase font-bold">
+                    Board Connection
+                </div>
+
+                <div id="connectionStatus"
+                     class="text-sm font-black mt-1">
+
+                    Simulation Mode
+
+                </div>
+
+                <div id="connectionDetail"
+                     class="text-[10px] text-slate-500 mt-1">
+
+                    No physical receiver connected
+
+                </div>
+
+            </div>
+
+            <button
+                id="bleButton"
+                onclick="connectBLE()"
+                class="px-4 py-2.5 rounded-xl
+                       bg-cyan-400 text-black
+                       text-[10px] font-black
+                       uppercase">
+
+                <i class="fa-brands fa-bluetooth-b mr-1"></i>
+                Connect
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- SAFETY -->
+    <div id="warningBanner"
+         class="hidden glass rounded-xl
+                p-3 mb-4
+                border-red-500/50
+                warning-banner">
+
+        <div class="flex gap-3">
+
+            <i class="fa-solid fa-triangle-exclamation red mt-1"></i>
+
+            <div>
+
+                <div class="text-xs font-black red">
+                    SAFETY WARNING
+                </div>
+
+                <div id="warningText"
+                     class="text-[10px] text-slate-300 mt-1">
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SPEEDOMETER -->
+
+    <div class="glass glow rounded-3xl p-5
+                flex flex-col items-center">
+
+        <div class="text-[10px]
+                    uppercase tracking-[.3em]
+                    text-slate-500 font-bold">
+
+            CURRENT SPEED
+
+        </div>
+
+        <div class="speed-ring mt-1">
+
+            <svg viewBox="0 0 280 280">
+
+                <circle
+                    class="speed-track"
+                    cx="140"
+                    cy="140"
+                    r="120"/>
+
+                <circle
+                    id="speedProgress"
+                    class="speed-progress"
+                    cx="140"
+                    cy="140"
+                    r="120"/>
+
+            </svg>
+
+            <div class="speed-center">
+
+                <div id="homeSpeed"
+                     class="text-6xl font-black">
+                    0.0
+                </div>
+
+                <div class="cyan
+                            text-xs
+                            font-black
+                            tracking-widest">
+
+                    KM/H
+
+                </div>
+
+                <div class="mt-3
+                            px-3 py-1
+                            rounded-full
+                            bg-slate-900
+                            border border-slate-700
+                            text-[10px]">
+
+                    LIMIT:
+                    <span id="speedLimit">
+                        10
+                    </span>
+                    km/h
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ARM STATUS -->
+
+        <div class="w-full mt-3
+                    grid grid-cols-2 gap-2">
+
+            <div class="bg-slate-900/70
+                        border border-slate-800
+                        rounded-xl p-3">
+
+                <div class="text-[9px] text-slate-500">
+                    BOARD
+                </div>
+
+                <div id="armedStatus"
+                     class="text-xs font-black mt-1 red">
+
+                    DISARMED
+
+                </div>
+
+            </div>
+
+            <div class="bg-slate-900/70
+                        border border-slate-800
+                        rounded-xl p-3">
+
+                <div class="text-[9px] text-slate-500">
+                    REMOTE
+                </div>
+
+                <div id="remoteStatus"
+                     class="text-xs font-black mt-1">
+
+                    WAITING
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- RIDE MODE -->
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="flex justify-between items-center mb-3">
+
+            <div>
+
+                <div class="text-xs font-black">
+                    RIDE MODE
+                </div>
+
+                <div class="text-[9px] text-slate-500 mt-1">
+                    App control • Receiver safety limit
+                </div>
+
+            </div>
+
+            <div id="modeSource"
+                 class="text-[9px] cyan font-bold">
+                APP
+
+            </div>
+
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+
+            <button
+                id="modeBeginner"
+                onclick="setMode('BEGINNER')"
+                class="mode-btn rounded-xl p-3 text-left">
+
+                <div class="text-[10px] font-black">
+                    BEGINNER
+                </div>
+
+                <div class="text-[9px] text-slate-500 mt-1">
+                    ≤ 10 km/h
+                </div>
+
+            </button>
+
+            <button
+                id="modeNormal"
+                onclick="setMode('NORMAL')"
+                class="mode-btn rounded-xl p-3 text-left">
+
+                <div class="text-[10px] font-black">
+                    NORMAL
+                </div>
+
+                <div class="text-[9px] text-slate-500 mt-1">
+                    10–20 km/h
+                </div>
+
+            </button>
+
+            <button
+                id="modePro"
+                onclick="setMode('PRO')"
+                class="mode-btn rounded-xl p-3 text-left">
+
+                <div class="text-[10px] font-black">
+                    PRO
+                </div>
+
+                <div class="text-[9px] text-slate-500 mt-1">
+                    >20 km/h
+                </div>
+
+            </button>
+
+        </div>
+
+        <div class="mt-3
+                    rounded-xl
+                    bg-slate-900
+                    border border-slate-800
+                    p-3">
+
+            <div class="flex justify-between">
+
+                <span class="text-[9px] text-slate-500">
+                    CURRENT MODE
+                </span>
+
+                <span id="currentMode"
+                      class="text-[10px] cyan font-black">
+                    BEGINNER
+                </span>
+
+            </div>
+
+            <div class="flex justify-between mt-2">
+
+                <span class="text-[9px] text-slate-500">
+                    MAX SPEED
+                </span>
+
+                <span id="modeLimit"
+                      class="text-[10px] font-black">
+                    10 km/h
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- PRIMARY METRICS -->
+
+    <div class="grid grid-cols-2 gap-3 mt-4">
+
+        <div class="glass rounded-2xl p-4 metric">
+
+            <div class="text-[9px] uppercase text-slate-500">
+                Trip Distance
+            </div>
+
+            <div class="mt-2">
+
+                <span id="tripDistance"
+                      class="text-2xl font-black">
+                    0.00
+                </span>
+
+                <span class="text-[10px] text-slate-500">
+                    km
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="glass rounded-2xl p-4 metric">
+
+            <div class="text-[9px] uppercase text-slate-500">
+                Ride Time
+            </div>
+
+            <div id="rideDuration"
+                 class="text-2xl font-black mt-2">
+                00:00
+            </div>
+
+        </div>
+
+
+        <div class="glass rounded-2xl p-4 metric">
+
+            <div class="text-[9px] uppercase text-slate-500">
+                Average Speed
+            </div>
+
+            <div class="mt-2">
+
+                <span id="averageSpeed"
+                      class="text-2xl font-black">
+                    0.0
+                </span>
+
+                <span class="text-[10px] text-slate-500">
+                    km/h
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="glass rounded-2xl p-4 metric">
+
+            <div class="text-[9px] uppercase text-slate-500">
+                Top Speed
+            </div>
+
+            <div class="mt-2">
+
+                <span id="maxSpeed"
+                      class="text-2xl font-black">
+                    0.0
+                </span>
+
+                <span class="text-[10px] text-slate-500">
+                    km/h
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- BATTERY -->
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="flex justify-between">
+
+            <div class="flex items-center gap-2">
+
+                <i class="fa-solid fa-battery-three-quarters cyan"></i>
+
+                <span class="text-xs font-black">
+                    BATTERY
+                </span>
+
+            </div>
+
+            <span id="batteryPercent"
+                  class="text-sm green font-black">
+                100%
+            </span>
+
+        </div>
+
+        <div class="w-full
+                    h-2
+                    bg-slate-800
+                    rounded-full
+                    overflow-hidden
+                    mt-3">
+
+            <div id="batteryBar"
+                 class="h-full bg-emerald-400
+                        rounded-full transition-all"
+                 style="width:100%">
+            </div>
+
+        </div>
+
+        <div class="grid grid-cols-4 gap-2 mt-4">
+
+            <div>
+                <div class="text-[8px] text-slate-500">
+                    VOLTAGE
+                </div>
+                <div id="voltage"
+                     class="text-xs font-bold mt-1">
+                    50.4 V
+                </div>
+            </div>
+
+            <div>
+                <div class="text-[8px] text-slate-500">
+                    CURRENT
+                </div>
+                <div id="batteryCurrent"
+                     class="text-xs font-bold mt-1">
+                    0 A
+                </div>
+            </div>
+
+            <div>
+                <div class="text-[8px] text-slate-500">
+                    POWER
+                </div>
+                <div id="power"
+                     class="text-xs font-bold mt-1">
+                    0 W
+                </div>
+            </div>
+
+            <div>
+                <div class="text-[8px] text-slate-500">
+                    RANGE
+                </div>
+                <div id="range"
+                     class="text-xs font-bold cyan mt-1">
+                    30 km
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- MOTOR -->
+
+    <div class="grid grid-cols-2 gap-3 mt-4">
+
+        <div class="glass rounded-2xl p-4">
+
+            <div class="flex justify-between">
+
+                <span class="text-[9px] text-slate-500">
+                    MOTOR RPM
+                </span>
+
+                <i class="fa-solid fa-gears cyan text-xs"></i>
+
+            </div>
+
+            <div id="rpm"
+                 class="text-xl font-black mt-2">
+                0
+            </div>
+
+            <div class="text-[9px] text-slate-500">
+                RPM
+            </div>
+
+        </div>
+
+
+        <div class="glass rounded-2xl p-4">
+
+            <div class="flex justify-between">
+
+                <span class="text-[9px] text-slate-500">
+                    DUTY CYCLE
+                </span>
+
+                <i class="fa-solid fa-wave-square cyan text-xs"></i>
+
+            </div>
+
+            <div id="duty"
+                 class="text-xl font-black mt-2">
+                0%
+            </div>
+
+        </div>
+
+
+        <div class="glass rounded-2xl p-4">
+
+            <div class="flex justify-between">
+
+                <span class="text-[9px] text-slate-500">
+                    MOTOR TEMP
+                </span>
+
+                <i class="fa-solid fa-temperature-half yellow text-xs"></i>
+
+            </div>
+
+            <div id="motorTemp"
+                 class="text-xl font-black mt-2">
+                30 °C
+            </div>
+
+        </div>
+
+
+        <div class="glass rounded-2xl p-4">
+
+            <div class="flex justify-between">
+
+                <span class="text-[9px] text-slate-500">
+                    MOSFET TEMP
+                </span>
+
+                <i class="fa-solid fa-microchip cyan text-xs"></i>
+
+            </div>
+
+            <div id="mosfetTemp"
+                 class="text-xl font-black mt-2">
+                32 °C
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- START RIDE -->
+
+    <button
+        id="rideButton"
+        onclick="toggleRide()"
+        class="w-full mt-4
+               py-4
+               rounded-2xl
+               bg-cyan-400
+               text-black
+               font-black
+               text-xs
+               uppercase
+               tracking-widest">
+
+        <i class="fa-solid fa-play mr-2"></i>
+        Start Ride
+
+    </button>
+
+</section>
+
+
+<!-- ========================================================= -->
+<!-- RIDE -->
+<!-- ========================================================= -->
+
+<section id="page-ride" class="page px-4 pt-4">
+
+    <div class="glass rounded-2xl p-4">
+
+        <div class="flex justify-between items-center">
+
+            <div>
+
+                <div class="text-[9px] text-slate-500 uppercase">
+                    Live Ride
+                </div>
+
+                <div id="rideState"
+                     class="text-lg font-black mt-1">
+                    READY
+                </div>
+
+            </div>
+
+            <div id="gpsStatus"
+                 class="text-[9px] cyan font-bold">
+                GPS SIMULATION
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- LIVE SPEED -->
+
+    <div class="glass rounded-3xl
+                p-6 text-center mt-4">
+
+        <div class="text-[9px]
+                    uppercase
+                    tracking-[.3em]
+                    text-slate-500">
+
+            LIVE SPEED
+
+        </div>
+
+        <div class="mt-2">
+
+            <span id="rideSpeed"
+                  class="text-7xl font-black">
+                0.0
+            </span>
+
+            <span class="text-xs text-slate-500">
+                KM/H
+            </span>
+
+        </div>
+
+        <div class="grid grid-cols-3
+                    gap-2
+                    mt-5
+                    pt-4
+                    border-t border-slate-800">
+
+            <div>
+
+                <div class="text-[8px] text-slate-500">
+                    AVG
+                </div>
+
+                <div id="rideAvg"
+                     class="text-sm font-black mt-1">
+                    0.0
+                </div>
+
+            </div>
+
+            <div>
+
+                <div class="text-[8px] text-slate-500">
+                    MAX
+                </div>
+
+                <div id="rideMax"
+                     class="text-sm font-black mt-1">
+                    0.0
+                </div>
+
+            </div>
+
+            <div>
+
+                <div class="text-[8px] text-slate-500">
+                    EFFICIENCY
+                </div>
+
+                <div id="rideEfficiency"
+                     class="text-sm font-black cyan mt-1">
+                    0.0
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SPEED GRAPH -->
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="text-xs font-black mb-3">
+            SPEED vs TIME
+        </div>
+
+        <div class="chart-box">
+            <canvas id="speedChart"></canvas>
+        </div>
+
+    </div>
+
+
+    <!-- BATTERY GRAPH -->
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="text-xs font-black mb-3">
+            BATTERY vs TIME
+        </div>
+
+        <div class="small-chart">
+            <canvas id="batteryChart"></canvas>
+        </div>
+
+    </div>
+
+
+    <!-- POWER GRAPH -->
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="text-xs font-black mb-3">
+            POWER vs TIME
+        </div>
+
+        <div class="small-chart">
+            <canvas id="powerChart"></canvas>
+        </div>
+
+    </div>
+
+
+    <!-- TEMPERATURE GRAPH -->
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="text-xs font-black mb-3">
+            THERMAL PERFORMANCE
+        </div>
+
+        <div class="small-chart">
+            <canvas id="temperatureChart"></canvas>
+        </div>
+
+    </div>
+
+
+    <!-- CURRENT GRAPH -->
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="text-xs font-black mb-3">
+            CURRENT
+        </div>
+
+        <div class="small-chart">
+            <canvas id="currentChart"></canvas>
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ========================================================= -->
+<!-- ANALYTICS -->
+<!-- ========================================================= -->
+
+<section id="page-analytics" class="page px-4 pt-4">
+
+    <div class="mb-4">
+
+        <div class="text-xl font-black">
+            Analytics
+        </div>
+
+        <div class="text-xs text-slate-500 mt-1">
+            Long-term skateboard performance
+        </div>
+
+    </div>
+
+
+    <div class="grid grid-cols-2 gap-3">
+
+        <div class="glass rounded-2xl p-4">
+
+            <div class="text-[9px] text-slate-500">
+                TOTAL DISTANCE
+            </div>
+
+            <div id="totalDistance"
+                 class="text-2xl font-black mt-2">
+                0.00
+            </div>
+
+            <div class="text-[9px] text-slate-500">
+                km
+            </div>
+
+        </div>
+
+
+        <div class="glass rounded-2xl p-4">
+
+            <div class="text-[9px] text-slate-500">
+                TOTAL RIDES
+            </div>
+
+            <div id="totalRides"
+                 class="text-2xl font-black mt-2">
+                0
+            </div>
+
+        </div>
+
+
+        <div class="glass rounded-2xl p-4">
+
+            <div class="text-[9px] text-slate-500">
+                TOP SPEED
+            </div>
+
+            <div id="lifetimeTopSpeed"
+                 class="text-2xl font-black mt-2">
+                0
+            </div>
+
+            <div class="text-[9px] text-slate-500">
+                km/h
+            </div>
+
+        </div>
+
+
+        <div class="glass rounded-2xl p-4">
+
+            <div class="text-[9px] text-slate-500">
+                ENERGY USED
+            </div>
+
+            <div id="totalEnergy"
+                 class="text-2xl font-black mt-2">
+                0
+            </div>
+
+            <div class="text-[9px] text-slate-500">
+                Wh
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="text-xs font-black mb-3">
+            DISTANCE PER RIDE
+        </div>
+
+        <div class="chart-box">
+            <canvas id="distanceChart"></canvas>
+        </div>
+
+    </div>
+
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="text-xs font-black mb-3">
+            EFFICIENCY TREND
+        </div>
+
+        <div class="chart-box">
+            <canvas id="efficiencyChart"></canvas>
+        </div>
+
+    </div>
+
+
+    <!-- SPEED DISTRIBUTION -->
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="text-xs font-black mb-4">
+            SPEED DISTRIBUTION
+        </div>
+
+        <div class="space-y-3">
+
+            <div>
+
+                <div class="flex justify-between text-[9px] mb-1">
+                    <span>0–10 km/h</span>
+                    <span id="speedZone1">0%</span>
+                </div>
+
+                <div class="h-2 bg-slate-800 rounded-full">
+
+                    <div id="speedBar1"
+                         class="h-full bg-cyan-400 rounded-full"
+                         style="width:0%">
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div>
+
+                <div class="flex justify-between text-[9px] mb-1">
+                    <span>10–20 km/h</span>
+                    <span id="speedZone2">0%</span>
+                </div>
+
+                <div class="h-2 bg-slate-800 rounded-full">
+
+                    <div id="speedBar2"
+                         class="h-full bg-cyan-400 rounded-full"
+                         style="width:0%">
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div>
+
+                <div class="flex justify-between text-[9px] mb-1">
+                    <span>20–30 km/h</span>
+                    <span id="speedZone3">0%</span>
+                </div>
+
+                <div class="h-2 bg-slate-800 rounded-full">
+
+                    <div id="speedBar3"
+                         class="h-full bg-cyan-400 rounded-full"
+                         style="width:0%">
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div>
+
+                <div class="flex justify-between text-[9px] mb-1">
+                    <span>30+ km/h</span>
+                    <span id="speedZone4">0%</span>
+                </div>
+
+                <div class="h-2 bg-slate-800 rounded-full">
+
+                    <div id="speedBar4"
+                         class="h-full bg-cyan-400 rounded-full"
+                         style="width:0%">
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ========================================================= -->
+<!-- HISTORY -->
+<!-- ========================================================= -->
+
+<section id="page-history" class="page px-4 pt-4">
+
+    <div class="flex justify-between items-center mb-4">
+
+        <div>
+
+            <div class="text-xl font-black">
+                Ride History
+            </div>
+
+            <div class="text-xs text-slate-500">
+                Saved rides
+            </div>
+
+        </div>
+
+        <button
+            onclick="clearHistory()"
+            class="text-[9px] text-red-400">
+            CLEAR
+        </button>
+
+    </div>
+
+    <div id="historyList"
+         class="space-y-3">
+
+    </div>
+
+</section>
+
+
+<!-- ========================================================= -->
+<!-- BOARD -->
+<!-- ========================================================= -->
+
+<section id="page-board" class="page px-4 pt-4">
+
+    <div class="text-xl font-black">
+        Board
+    </div>
+
+    <div class="text-xs text-slate-500 mt-1 mb-4">
+        Device and safety information
+    </div>
+
+
+    <!-- DEVICE -->
+
+    <div class="glass rounded-2xl p-4">
+
+        <div class="flex items-center gap-3">
+
+            <div class="w-11 h-11
+                        rounded-xl
+                        bg-cyan-400/10
+                        flex items-center justify-center">
+
+                <i class="fa-solid fa-microchip cyan"></i>
+
+            </div>
+
+            <div>
+
+                <div class="text-xs font-black">
+                    ESP32 Receiver
+                </div>
+
+                <div id="deviceName"
+                     class="text-[9px] text-slate-500 mt-1">
+                    Not connected
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="grid grid-cols-2 gap-3 mt-4">
+
+            <div class="bg-slate-900 rounded-xl p-3">
+
+                <div class="text-[8px] text-slate-500">
+                    BLE
+                </div>
+
+                <div id="boardBLEStatus"
+                     class="text-xs font-bold mt-1">
+                    DISCONNECTED
+                </div>
+
+            </div>
+
+
+            <div class="bg-slate-900 rounded-xl p-3">
+
+                <div class="text-[8px] text-slate-500">
+                    REMOTE
+                </div>
+
+                <div id="boardRemoteStatus"
+                     class="text-xs font-bold mt-1">
+                    UNKNOWN
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SAFETY -->
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="text-xs font-black mb-4">
+            SAFETY MONITORING
+        </div>
+
+
+        <div class="space-y-3">
+
+            <div class="flex justify-between">
+
+                <span class="text-[10px] text-slate-400">
+                    Board Armed
+                </span>
+
+                <span id="safeArmed"
+                      class="text-[10px] font-black green">
+                    SAFE
+                </span>
+
+            </div>
+
+
+            <div class="flex justify-between">
+
+                <span class="text-[10px] text-slate-400">
+                    Remote Connection
+                </span>
+
+                <span id="safeRemote"
+                      class="text-[10px] font-black green">
+                    OK
+                </span>
+
+            </div>
+
+
+            <div class="flex justify-between">
+
+                <span class="text-[10px] text-slate-400">
+                    Motor Temperature
+                </span>
+
+                <span id="safeMotor"
+                      class="text-[10px] font-black green">
+                    NORMAL
+                </span>
+
+            </div>
+
+
+            <div class="flex justify-between">
+
+                <span class="text-[10px] text-slate-400">
+                    MOSFET Temperature
+                </span>
+
+                <span id="safeMosfet"
+                      class="text-[10px] font-black green">
+                    NORMAL
+                </span>
+
+            </div>
+
+
+            <div class="flex justify-between">
+
+                <span class="text-[10px] text-slate-400">
+                    Battery
+                </span>
+
+                <span id="safeBattery"
+                      class="text-[10px] font-black green">
+                    NORMAL
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ABOUT -->
+
+    <div class="glass rounded-2xl p-4 mt-4">
+
+        <div class="text-xs font-black">
+            ABOUT
+        </div>
+
+        <div class="mt-3">
+
+            <div class="text-sm font-black">
+                Smart Electric Skateboard
+            </div>
+
+            <div class="text-[10px] text-slate-400 mt-2 leading-relaxed">
+
+                A smart electric skateboard monitoring and
+                ride analytics system developed for research,
+                telemetry monitoring, GPS ride tracking,
+                performance analysis and vehicle safety.
+
+            </div>
+
+            <div class="text-[10px] text-slate-500 mt-3">
+                Developed by Poojitha Dilshan
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ========================================================= -->
+<!-- BOTTOM NAV -->
+<!-- ========================================================= -->
+
+<nav class="nav">
+
+    <div class="grid grid-cols-5">
+
+        <button
+            onclick="navigate('home')"
+            id="nav-home"
+            class="active py-3 flex flex-col items-center gap-1">
+
+            <i class="fa-solid fa-gauge-high text-sm"></i>
+            <span class="text-[9px] font-bold">Home</span>
+
+        </button>
+
+
+        <button
+            onclick="navigate('ride')"
+            id="nav-ride"
+            class="py-3 flex flex-col items-center gap-1">
+
+            <i class="fa-solid fa-person-skating text-sm"></i>
+            <span class="text-[9px] font-bold">Ride</span>
+
+        </button>
+
+
+        <button
+            onclick="navigate('analytics')"
+            id="nav-analytics"
+            class="py-3 flex flex-col items-center gap-1">
+
+            <i class="fa-solid fa-chart-line text-sm"></i>
+            <span class="text-[9px] font-bold">Analytics</span>
+
+        </button>
+
+
+        <button
+            onclick="navigate('history')"
+            id="nav-history"
+            class="py-3 flex flex-col items-center gap-1">
+
+            <i class="fa-solid fa-clock-rotate-left text-sm"></i>
+            <span class="text-[9px] font-bold">History</span>
+
+        </button>
+
+
+        <button
+            onclick="navigate('board')"
+            id="nav-board"
+            class="py-3 flex flex-col items-center gap-1">
+
+            <i class="fa-solid fa-skateboard text-sm"></i>
+            <span class="text-[9px] font-bold">Board</span>
+
+        </button>
+
+    </div>
+
+</nav>
+
+
+<!-- TOAST -->
+
+<div id="toast"
+     class="toast">
+</div>
+
+
+<script>
+
+/* ============================================================
+   CONFIGURATION
+============================================================ */
+
+/*
+    BLE SERVICE ARCHITECTURE
+
+    Receiver ESP32:
+
+    Service
+    12345678-1234-1234-1234-1234567890ab
+
+    Telemetry
+    12345678-1234-1234-1234-1234567890ac
+
+    Command
+    12345678-1234-1234-1234-1234567890ad
+*/
+
+const BLE_SERVICE_UUID =
+    "12345678-1234-1234-1234-1234567890ab";
+
+const BLE_TELEMETRY_UUID =
+    "12345678-1234-1234-1234-1234567890ac";
+
+const BLE_COMMAND_UUID =
+    "12345678-1234-1234-1234-1234567890ad";
+
+
+/*
+    MODE LIMITS
+
+    These are UI/safety limits.
+
+    IMPORTANT:
+    Actual motor limiting must ALSO happen
+    on the ESP32 receiver.
+*/
+
+const MODES = {
+
+    BEGINNER: {
+        name: "BEGINNER",
+        limit: 10
+    },
+
+    NORMAL: {
+        name: "NORMAL",
+        limit: 20
+    },
+
+    PRO: {
+        name: "PRO",
+        limit: 100
+    }
+
+};
+
+
+/* ============================================================
+   APPLICATION STATE
+============================================================ */
+
+const state = {
+
+    /* Connection */
+
+    bleConnected: false,
+    simulation: true,
+
+    device: null,
+    server: null,
+    telemetryCharacteristic: null,
+    commandCharacteristic: null,
+
+
+    /* Vehicle */
+
+    speed: 0,
+    rpm: 0,
+
+    motorCurrent: 0,
+    batteryCurrent: 0,
+
+    voltage: 50.4,
+
+    batteryPercent: 100,
+
+    motorTemp: 30,
+    mosfetTemp: 32,
+
+    dutyCycle: 0,
+
+    power: 0,
+
+    wattHours: 0,
+
+
+    /* Ride */
+
+    riding: false,
+
+    rideStart: null,
+
+    durationSec: 0,
+
+    distance: 0,
+
+    maxSpeed: 0,
+
+    speedSum: 0,
+
+    sampleCount: 0,
+
+
+    /* Mode */
+
+    mode: "BEGINNER",
+
+    /* Current telemetry source */
+
+    remoteConnected: false,
+    armed: false,
+
+
+    /* Graph data */
+
+    speedHistory: [],
+    batteryHistory: [],
+    powerHistory: [],
+    temperatureHistory: [],
+    currentHistory: [],
+
+
+    /* Speed zones */
+
+    speedZones: [
+        0,
+        0,
+        0,
+        0
+    ],
+
+
+    /* GPS */
+
+    latitude: 6.9271,
+    longitude: 79.8612,
+    altitude: 10,
+
+
+    /* History */
+
+    rides: []
+
+};
+
+
+/* ============================================================
+   CHARTS
+============================================================ */
+
+let charts = {};
+
+
+function createChart(
+    id,
+    datasets,
+    yLabel
+) {
+
+    const ctx =
+        document.getElementById(id)
+            .getContext("2d");
+
+
+    charts[id] = new Chart(
+        ctx,
+        {
+
+            type: "line",
+
+            data: {
+
+                labels: [],
+
+                datasets
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                animation: false,
+
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
+
+                plugins: {
+
+                    legend: {
+
+                        labels: {
+
+                            color: "#94a3b8",
+
+                            font: {
+                                size: 9
+                            }
+
+                        }
+
+                    }
+
+                },
+
+                scales: {
+
+                    x: {
+
+                        ticks: {
+                            color: "#64748b",
+                            maxTicksLimit: 7
+                        },
+
+                        grid: {
+                            color: "rgba(100,116,139,.10)"
+                        }
+
+                    },
+
+                    y: {
+
+                        title: {
+
+                            display: true,
+
+                            text: yLabel,
+
+                            color: "#64748b"
+
+                        },
+
+                        ticks: {
+                            color: "#64748b"
+                        },
+
+                        grid: {
+                            color: "rgba(100,116,139,.10)"
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    );
+
+}
+
+
+function initCharts() {
+
+    createChart(
+
+        "speedChart",
+
+        [
+            {
+                label: "Speed km/h",
+
+                data: [],
+
+                borderColor: "#00e5ff",
+
+                backgroundColor: "rgba(0,229,255,.08)",
+
+                borderWidth: 2,
+
+                fill: true,
+
+                pointRadius: 0,
+
+                tension: .35
+            }
+        ],
+
+        "km/h"
+
+    );
+
+
+    createChart(
+
+        "batteryChart",
+
+        [
+            {
+                label: "Battery %",
+
+                data: [],
+
+                borderColor: "#00e676",
+
+                borderWidth: 2,
+
+                pointRadius: 0,
+
+                tension: .35
+            }
+        ],
+
+        "%"
+
+    );
+
+
+    createChart(
+
+        "powerChart",
+
+        [
+            {
+                label: "Power W",
+
+                data: [],
+
+                borderColor: "#ffb300",
+
+                borderWidth: 2,
+
+                pointRadius: 0,
+
+                tension: .35
+            }
+        ],
+
+        "W"
+
+    );
+
+
+    createChart(
+
+        "temperatureChart",
+
+        [
+
+            {
+                label: "Motor °C",
+
+                data: [],
+
+                borderColor: "#ff8a65",
+
+                borderWidth: 2,
+
+                pointRadius: 0,
+
+                tension: .35
+            },
+
+            {
+                label: "MOSFET °C",
+
+                data: [],
+
+                borderColor: "#00e5ff",
+
+                borderWidth: 2,
+
+                pointRadius: 0,
+
+                tension: .35
+            }
+
+        ],
+
+        "°C"
+
+    );
+
+
+    createChart(
+
+        "currentChart",
+
+        [
+
+            {
+                label: "Motor A",
+
+                data: [],
+
+                borderColor: "#a78bfa",
+
+                borderWidth: 2,
+
+                pointRadius: 0,
+
+                tension: .35
+            },
+
+            {
+                label: "Battery A",
+
+                data: [],
+
+                borderColor: "#34d399",
+
+                borderWidth: 2,
+
+                pointRadius: 0,
+
+                tension: .35
+            }
+
+        ],
+
+        "A"
+
+    );
+
+
+    createChart(
+
+        "distanceChart",
+
+        [
+
+            {
+                label: "Distance km",
+
+                data: [],
+
+                borderColor: "#00e5ff",
+
+                borderWidth: 2,
+
+                pointRadius: 3,
+
+                tension: .3
+            }
+
+        ],
+
+        "km"
+
+    );
+
+
+    createChart(
+
+        "efficiencyChart",
+
+        [
+
+            {
+                label: "Wh/km",
+
+                data: [],
+
+                borderColor: "#00e676",
+
+                borderWidth: 2,
+
+                pointRadius: 3,
+
+                tension: .3
+            }
+
+        ],
+
+        "Wh/km"
+
+    );
+
+}
+
+
+/* ============================================================
+   NAVIGATION
+============================================================ */
+
+function navigate(page) {
+
+    document
+        .querySelectorAll(".page")
+        .forEach(
+            p => p.classList.remove("active")
+        );
+
+
+    document
+        .getElementById("page-" + page)
+        .classList.add("active");
+
+
+    document
+        .querySelectorAll(".nav button")
+        .forEach(
+            b => b.classList.remove("active")
+        );
+
+
+    document
+        .getElementById("nav-" + page)
+        .classList.add("active");
+
+
+    if (page === "analytics") {
+
+        updateAnalytics();
+
+    }
+
+
+    if (page === "history") {
+
+        renderHistory();
+
+    }
+
+}
+
+
+/* ============================================================
+   MODE CONTROL
+============================================================ */
+
+async function setMode(mode) {
+
+    state.mode = mode;
+
+    updateModeUI();
+
+
+    /*
+        Send mode to receiver through BLE.
+
+        The receiver must enforce this limit.
+    */
+
+    if (
+        state.bleConnected &&
+        state.commandCharacteristic
+    ) {
+
+        try {
+
+            const command = JSON.stringify({
+
+                type: "mode",
+
+                mode: mode
+
+            });
+
+
+            const data =
+                new TextEncoder()
+                    .encode(command);
+
+
+            await state.commandCharacteristic
+                .writeValue(data);
+
+
+            showToast(
+                "Mode sent to receiver: " + mode
+            );
+
+        }
+
+        catch(error) {
+
+            console.error(error);
+
+            showToast(
+                "Could not send mode to receiver"
+            );
+
+        }
+
+    }
+
+    else {
+
+        showToast(
+            "Mode changed in app simulation"
+        );
+
+    }
+
+}
+
+
+function updateModeUI() {
+
+    const mode =
+        MODES[state.mode];
+
+
+    document
+        .getElementById("currentMode")
+        .textContent =
+        mode.name;
+
+
+    document
+        .getElementById("modeLimit")
+        .textContent =
+        mode.limit === 100
+            ? "No software limit"
+            : mode.limit + " km/h";
+
+
+    document
+        .getElementById("speedLimit")
+        .textContent =
+        mode.limit === 100
+            ? "∞"
+            : mode.limit;
+
+
+    document
+        .getElementById("modeBeginner")
+        .classList.toggle(
+            "active",
+            state.mode === "BEGINNER"
+        );
+
+
+    document
+        .getElementById("modeNormal")
+        .classList.toggle(
+            "active",
+            state.mode === "NORMAL"
+        );
+
+
+    document
+        .getElementById("modePro")
+        .classList.toggle(
+            "active",
+            state.mode === "PRO"
+        );
+
+}
+
+
+/* ============================================================
+   BLE
+============================================================ */
+
+async function connectBLE() {
+
+    if (!navigator.bluetooth) {
+
+        showToast(
+            "Web Bluetooth is not supported by this browser"
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        setConnectionUI(
+            "CONNECTING",
+            false
+        );
+
+
+        /*
+            User must press the button.
+
+            This is required by Web Bluetooth.
+        */
+
+        state.device =
+            await navigator.bluetooth.requestDevice({
+
+                filters: [
+
+                    {
+                        namePrefix: "SKATE"
+                    },
+
+                    {
+                        namePrefix: "ESP32"
+                    }
+
+                ],
+
+                optionalServices: [
+                    BLE_SERVICE_UUID
+                ]
+
+            });
+
+
+        state.device
+            .addEventListener(
+                "gattserverdisconnected",
+                handleBLEDisconnected
+            );
+
+
+        state.server =
+            await state.device.gatt.connect();
+
+
+        const service =
+            await state.server
+                .getPrimaryService(
+                    BLE_SERVICE_UUID
+                );
+
+
+        state.telemetryCharacteristic =
+            await service.getCharacteristic(
+                BLE_TELEMETRY_UUID
+            );
+
+
+        state.commandCharacteristic =
+            await service.getCharacteristic(
+                BLE_COMMAND_UUID
+            );
+
+
+        await state.telemetryCharacteristic
+            .startNotifications();
+
+
+        state.telemetryCharacteristic
+            .addEventListener(
+                "characteristicvaluechanged",
+                handleBLETelemetry
+            );
+
+
+        state.bleConnected = true;
+
+        state.simulation = false;
+
+
+        document
+            .getElementById("deviceName")
+            .textContent =
+            state.device.name ||
+            "ESP32 Receiver";
+
+
+        setConnectionUI(
+            "BLE CONNECTED",
+            true
+        );
+
+
+        showToast(
+            "Receiver connected successfully"
+        );
+
+
+        /*
+            Send current app mode
+        */
+
+        await setMode(state.mode);
+
+    }
+
+    catch(error) {
+
+        console.error(
+            "BLE connection failed:",
+            error
+        );
+
+
+        state.bleConnected = false;
+
+        state.simulation = true;
+
+
+        setConnectionUI(
+            "SIMULATION",
+            false
+        );
+
+
+        showToast(
+            "BLE connection cancelled or failed"
+        );
+
+    }
+
+}
+
+
+function handleBLEDisconnected() {
+
+    state.bleConnected = false;
+
+    state.simulation = true;
+
+    state.telemetryCharacteristic = null;
+
+    state.commandCharacteristic = null;
+
+
+    setConnectionUI(
+        "DISCONNECTED",
+        false
+    );
+
+
+    showToast(
+        "Receiver disconnected"
+    );
+
+}
+
+
+function handleBLETelemetry(event) {
+
+    try {
+
+        const text =
+            new TextDecoder()
+                .decode(event.target.value);
+
+
+        const telemetry =
+            JSON.parse(text);
+
+
+        applyTelemetry(
+            telemetry
+        );
+
+    }
+
+    catch(error) {
+
+        console.error(
+            "Telemetry decode error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ============================================================
+   TELEMETRY
+============================================================ */
+
+function applyTelemetry(data) {
+
+    state.rpm =
+        Number(data.rpm) || 0;
+
+
+    state.motorCurrent =
+        Number(data.motorCurrent) || 0;
+
+
+    state.batteryCurrent =
+        Number(data.batteryCurrent) || 0;
+
+
+    state.voltage =
+        Number(data.batteryVoltage) || 0;
+
+
+    state.motorTemp =
+        Number(data.tempMotor) || 0;
+
+
+    state.mosfetTemp =
+        Number(data.tempMosfet) || 0;
+
+
+    state.dutyCycle =
+        Number(data.dutyCycle) || 0;
+
+
+    state.wattHours =
+        Number(data.wattHours) || 0;
+
+
+    if (
+        data.batteryPercent !== undefined
+    ) {
+
+        state.batteryPercent =
+            Number(data.batteryPercent);
+
+    }
+
+
+    state.armed =
+        Boolean(data.armed);
+
+
+    state.remoteConnected =
+        data.remoteConnected !== undefined
+            ? Boolean(data.remoteConnected)
+            : true;
+
+
+    /*
+        Receiver can report a mode.
+
+        If it reports one, display it.
+    */
+
+    if (
+        data.mode &&
+        MODES[data.mode]
+    ) {
+
+        state.mode =
+            data.mode;
+
+    }
+
+
+    /*
+        Calculate power.
+    */
+
+    state.power =
+        Math.max(
+            0,
+            state.voltage *
+            state.batteryCurrent
+        );
+
+
+    updateLiveData();
+
+}
+
+
+/* ============================================================
+   SIMULATION ENGINE
+============================================================ */
+
+function simulationLoop() {
+
+    if (!state.simulation) {
+
+        return;
+
+    }
+
+
+    /*
+        Create realistic skateboard behaviour.
+
+        Instead of random values, use smooth
+        acceleration / deceleration.
+    */
+
+    let targetSpeed = 0;
+
+
+    if (state.riding) {
+
+        const t =
+            Date.now() / 1000;
+
+
+        /*
+            Simulated ride cycle.
+        */
+
+        const cycle =
+            t % 45;
+
+
+        if (cycle < 10) {
+
+            targetSpeed =
+                (cycle / 10) *
+                MODES[state.mode].limit *
+                .75;
+
+        }
+
+        else if (cycle < 25) {
+
+            targetSpeed =
+                MODES[state.mode].limit *
+                .75;
+
+        }
+
+        else if (cycle < 35) {
+
+            targetSpeed =
+                MODES[state.mode].limit *
+                .35;
+
+        }
+
+        else {
+
+            targetSpeed = 0;
+
+        }
+
+    }
+
+
+    /*
+        Smooth speed.
+    */
+
+    state.speed +=
+        (targetSpeed - state.speed)
+        * .08;
+
+
+    /*
+        Prevent floating noise.
+    */
+
+    if (Math.abs(state.speed) < .1) {
+
+        state.speed = 0;
+
+    }
+
+
+    /*
+        Motor RPM approximation.
+    */
+
+    state.rpm =
+        state.speed * 95;
+
+
+    /*
+        Current.
+    */
+
+    state.motorCurrent =
+        state.speed * .75;
+
+
+    state.batteryCurrent =
+        state.speed * .48;
+
+
+    /*
+        Battery voltage.
+    */
+
+    state.voltage =
+        50.4 -
+        (100 - state.batteryPercent)
+        * .025;
+
+
+    /*
+        Power.
+    */
+
+    state.power =
+        Math.max(
+            0,
+            state.voltage *
+            state.batteryCurrent
+        );
+
+
+    /*
+        Battery discharge.
+    */
+
+    if (state.riding) {
+
+        state.batteryPercent =
+            Math.max(
+                0,
+                state.batteryPercent -
+                state.power /
+                360000
+            );
+
+
+        state.wattHours +=
+            state.power / 3600;
+
+    }
+
+
+    /*
+        Temperature follows load.
+    */
+
+    const motorTarget =
+        30 +
+        state.speed * .65;
+
+
+    const mosfetTarget =
+        32 +
+        state.speed * .45;
+
+
+    state.motorTemp +=
+        (motorTarget - state.motorTemp)
+        * .02;
+
+
+    state.mosfetTemp +=
+        (mosfetTarget - state.mosfetTemp)
+        * .02;
+
+
+    /*
+        Duty.
+    */
+
+    state.dutyCycle =
+        MODES[state.mode].limit === 100
+            ? state.speed / 35
+            : state.speed /
+              Math.max(
+                  MODES[state.mode].limit,
+                  1
+              );
+
+
+    state.dutyCycle =
+        Math.max(
+            0,
+            Math.min(
+                1,
+                state.dutyCycle
+            )
+        );
+
+
+    state.armed =
+        state.riding;
+
+
+    state.remoteConnected =
+        state.riding;
+
+
+    updateLiveData();
+
+}
+
+
+/* ============================================================
+   RIDE CONTROL
+============================================================ */
+
+function toggleRide() {
+
+    if (!state.riding) {
+
+        startRide();
+
+    }
+
+    else {
+
+        endRide();
+
+    }
+
+}
+
+
+function startRide() {
+
+    state.riding = true;
+
+    state.rideStart =
+        Date.now();
+
+
+    state.durationSec = 0;
+
+    state.distance = 0;
+
+    state.maxSpeed = 0;
+
+    state.speedSum = 0;
+
+    state.sampleCount = 0;
+
+    state.wattHours = 0;
+
+
+    state.speedHistory = [];
+
+    state.batteryHistory = [];
+
+    state.powerHistory = [];
+
+    state.temperatureHistory = [];
+
+    state.currentHistory = [];
+
+
+    state.speedZones = [
+        0,
+        0,
+        0,
+        0
+    ];
+
+
+    document
+        .getElementById("rideButton")
+        .innerHTML =
+        '<i class="fa-solid fa-stop mr-2"></i> End Ride';
+
+
+    document
+        .getElementById("rideButton")
+        .className =
+        "w-full mt-4 py-4 rounded-2xl bg-red-500 text-white font-black text-xs uppercase tracking-widest";
+
+
+    document
+        .getElementById("rideState")
+        .textContent =
+        "RIDING";
+
+
+    showToast(
+        "Ride recording started"
+    );
+
+}
+
+
+function endRide() {
+
+    state.riding = false;
+
+
+    document
+        .getElementById("rideButton")
+        .innerHTML =
+        '<i class="fa-solid fa-play mr-2"></i> Start Ride';
+
+
+    document
+        .getElementById("rideButton")
+        .className =
+        "w-full mt-4 py-4 rounded-2xl bg-cyan-400 text-black font-black text-xs uppercase tracking-widest";
+
+
+    document
+        .getElementById("rideState")
+        .textContent =
+        "RIDE COMPLETE";
+
+
+    saveRide();
+
+
+    showToast(
+        "Ride saved"
+    );
+
+}
+
+
+/* ============================================================
+   RIDE DATA SAMPLING
+============================================================ */
+
+function sampleRideData() {
+
+    if (!state.riding) {
+
+        return;
+
+    }
+
+
+    const now =
+        Date.now();
+
+
+    if (!state.lastSample) {
+
+        state.lastSample =
+            now;
+
+        return;
+
+    }
+
+
+    const dt =
+        (now - state.lastSample)
+        / 1000;
+
+
+    state.lastSample =
+        now;
+
+
+    /*
+        Distance:
+
+        km/h × hours
+    */
+
+    state.distance +=
+        state.speed *
+        dt /
+        3600;
+
+
+    state.durationSec =
+        Math.floor(
+            (now - state.rideStart)
+            / 1000
+        );
+
+
+    state.maxSpeed =
+        Math.max(
+            state.maxSpeed,
+            state.speed
+        );
+
+
+    state.speedSum +=
+        state.speed;
+
+
+    state.sampleCount++;
+
+
+    /*
+        Speed zones
+    */
+
+    if (state.speed < 10) {
+
+        state.speedZones[0]++;
+
+    }
+
+    else if (state.speed < 20) {
+
+        state.speedZones[1]++;
+
+    }
+
+    else if (state.speed < 30) {
+
+        state.speedZones[2]++;
+
+    }
+
+    else {
+
+        state.speedZones[3]++;
+
+    }
+
+
+    /*
+        Graph history
+    */
+
+    const label =
+        formatTime(
+            state.durationSec
+        );
+
+
+    state.speedHistory.push({
+        label,
+        value: state.speed
+    });
+
+
+    state.batteryHistory.push({
+        label,
+        value: state.batteryPercent
+    });
+
+
+    state.powerHistory.push({
+        label,
+        value: state.power
+    });
+
+
+    state.temperatureHistory.push({
+        label,
+        motor: state.motorTemp,
+        mosfet: state.mosfetTemp
+    });
+
+
+    state.currentHistory.push({
+        label,
+        motor: state.motorCurrent,
+        battery: state.batteryCurrent
+    });
+
+
+    /*
+        Keep charts manageable.
+    */
+
+    const MAX_POINTS = 180;
+
+
+    [
+        state.speedHistory,
+        state.batteryHistory,
+        state.powerHistory,
+        state.temperatureHistory,
+        state.currentHistory
+    ].forEach(arr => {
+
+        if (arr.length > MAX_POINTS) {
+
+            arr.shift();
+
+        }
+
+    });
+
+
+    updateCharts();
+
+}
+
+
+/* ============================================================
+   UI
+============================================================ */
+
+function updateLiveData() {
+
+    const speed =
+        state.speed;
+
+
+    document
+        .getElementById("homeSpeed")
+        .textContent =
+        speed.toFixed(1);
+
+
+    document
+        .getElementById("rideSpeed")
+        .textContent =
+        speed.toFixed(1);
+
+
+    document
+        .getElementById("tripDistance")
+        .textContent =
+        state.distance.toFixed(2);
+
+
+    document
+        .getElementById("homeSpeed")
+        .textContent =
+        speed.toFixed(1);
+
+
+    const average =
+        state.durationSec > 0
+            ? state.distance /
+              (state.durationSec / 3600)
+            : 0;
+
+
+    document
+        .getElementById("averageSpeed")
+        .textContent =
+        average.toFixed(1);
+
+
+    document
+        .getElementById("maxSpeed")
+        .textContent =
+        state.maxSpeed.toFixed(1);
+
+
+    document
+        .getElementById("rideAvg")
+        .textContent =
+        average.toFixed(1);
+
+
+    document
+        .getElementById("rideMax")
+        .textContent =
+        state.maxSpeed.toFixed(1);
+
+
+    const efficiency =
+        state.distance > 0
+            ? state.wattHours /
+              state.distance
+            : 0;
+
+
+    document
+        .getElementById("rideEfficiency")
+        .textContent =
+        efficiency.toFixed(1);
+
+
+    document
+        .getElementById("batteryPercent")
+        .textContent =
+        Math.round(
+            state.batteryPercent
+        ) + "%";
+
+
+    document
+        .getElementById("batteryBar")
+        .style.width =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                state.batteryPercent
+            )
+        ) + "%";
+
+
+    document
+        .getElementById("voltage")
+        .textContent =
+        state.voltage.toFixed(1)
+        + " V";
+
+
+    document
+        .getElementById("batteryCurrent")
+        .textContent =
+        state.batteryCurrent.toFixed(1)
+        + " A";
+
+
+    document
+        .getElementById("power")
+        .textContent =
+        Math.round(state.power)
+        + " W";
+
+
+    /*
+        Estimated range.
+
+        Approximation based on
+        current efficiency.
+    */
+
+    const estimatedRange =
+        efficiency > 0
+            ? (
+                state.batteryPercent *
+                0.504 /
+                efficiency *
+                100
+              )
+            : 30;
+
+
+    document
+        .getElementById("range")
+        .textContent =
+        Math.max(
+            0,
+            estimatedRange
+        ).toFixed(1)
+        + " km";
+
+
+    document
+        .getElementById("rpm")
+        .textContent =
+        Math.round(
+            state.rpm
+        );
+
+
+    document
+        .getElementById("duty")
+        .textContent =
+        Math.round(
+            state.dutyCycle * 100
+        ) + "%";
+
+
+    document
+        .getElementById("motorTemp")
+        .textContent =
+        state.motorTemp.toFixed(1)
+        + " °C";
+
+
+    document
+        .getElementById("mosfetTemp")
+        .textContent =
+        state.mosfetTemp.toFixed(1)
+        + " °C";
+
+
+    document
+        .getElementById("rideDuration")
+        .textContent =
+        formatTime(
+            state.durationSec
+        );
+
+
+    /*
+        Speedometer.
+
+        Circumference approximately 754.
+    */
+
+    const limit =
+        MODES[state.mode].limit;
+
+
+    let ratio;
+
+
+    if (limit === 100) {
+
+        ratio =
+            Math.min(
+                speed / 40,
+                1
+            );
+
+    }
+
+    else {
+
+        ratio =
+            Math.min(
+                speed / limit,
+                1
+            );
+
+    }
+
+
+    const circumference =
+        754;
+
+
+    document
+        .getElementById("speedProgress")
+        .style.strokeDashoffset =
+        circumference -
+        circumference * ratio;
+
+
+    /*
+        Safety states.
+    */
+
+    updateSafety();
+
+
+    /*
+        Armed state.
+    */
+
+    const armed =
+        document.getElementById(
+            "armedStatus"
+        );
+
+
+    armed.textContent =
+        state.armed
+            ? "ARMED"
+            : "DISARMED";
+
+
+    armed.className =
+        state.armed
+            ? "text-xs font-black mt-1 yellow"
+            : "text-xs font-black mt-1 red";
+
+
+    /*
+        Remote.
+    */
+
+    document
+        .getElementById("remoteStatus")
+        .textContent =
+        state.remoteConnected
+            ? "CONNECTED"
+            : "WAITING";
+
+
+    document
+        .getElementById("remoteStatus")
+        .className =
+        state.remoteConnected
+            ? "text-xs font-black mt-1 green"
+            : "text-xs font-black mt-1 red";
+
+
+    /*
+        Simulation / BLE source.
+    */
+
+    document
+        .getElementById("modeSource")
+        .textContent =
+        state.bleConnected
+            ? "RECEIVER"
+            : "APP";
+
+
+    /*
+        Update charts only during rides.
+    */
+
+    if (state.riding) {
+
+        sampleRideData();
+
+    }
+
+}
+
+
+/* ============================================================
+   SAFETY
+============================================================ */
+
+function updateSafety() {
+
+    const warnings = [];
+
+
+    if (
+        state.batteryPercent <= 20
+    ) {
+
+        warnings.push(
+            "Battery level is low."
+        );
+
+    }
+
+
+    if (
+        state.motorTemp >= 80
+    ) {
+
+        warnings.push(
+            "Motor temperature is high."
+        );
+
+    }
+
+
+    if (
+        state.mosfetTemp >= 80
+    ) {
+
+        warnings.push(
+            "MOSFET temperature is high."
+        );
+
+    }
+
+
+    if (
+        state.bleConnected &&
+        !state.remoteConnected
+    ) {
+
+        warnings.push(
+            "Remote connection unavailable."
+        );
+
+    }
+
+
+    const banner =
+        document.getElementById(
+            "warningBanner"
+        );
+
+
+    if (warnings.length) {
+
+        banner.classList.remove(
+            "hidden"
+        );
+
+
+        document
+            .getElementById("warningText")
+            .textContent =
+            warnings.join(" ");
+
+    }
+
+    else {
+
+        banner.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    /*
+        Board safety indicators.
+    */
+
+    document
+        .getElementById("safeBattery")
+        .textContent =
+        state.batteryPercent <= 20
+            ? "LOW"
+            : "NORMAL";
+
+
+    document
+        .getElementById("safeBattery")
+        .className =
+        state.batteryPercent <= 20
+            ? "text-[10px] font-black red"
+            : "text-[10px] font-black green";
+
+
+    document
+        .getElementById("safeMotor")
+        .textContent =
+        state.motorTemp >= 80
+            ? "HIGH"
+            : "NORMAL";
+
+
+    document
+        .getElementById("safeMotor")
+        .className =
+        state.motorTemp >= 80
+            ? "text-[10px] font-black red"
+            : "text-[10px] font-black green";
+
+
+    document
+        .getElementById("safeMosfet")
+        .textContent =
+        state.mosfetTemp >= 80
+            ? "HIGH"
+            : "NORMAL";
+
+
+    document
+        .getElementById("safeMosfet")
+        .className =
+        state.mosfetTemp >= 80
+            ? "text-[10px] font-black red"
+            : "text-[10px] font-black green";
+
+
+    document
+        .getElementById("safeRemote")
+        .textContent =
+        state.remoteConnected
+            ? "OK"
+            : "NOT CONNECTED";
+
+
+    document
+        .getElementById("safeRemote")
+        .className =
+        state.remoteConnected
+            ? "text-[10px] font-black green"
+            : "text-[10px] font-black red";
+
+}
+
+
+/* ============================================================
+   CHART UPDATE
+============================================================ */
+
+function updateCharts() {
+
+    const labels =
+        state.speedHistory
+            .map(x => x.label);
+
+
+    charts.speedChart.data.labels =
+        labels;
+
+
+    charts.speedChart
+        .data
+        .datasets[0]
+        .data =
+        state.speedHistory
+            .map(x => x.value);
+
+
+    charts.batteryChart.data.labels =
+        state.batteryHistory
+            .map(x => x.label);
+
+
+    charts.batteryChart
+        .data
+        .datasets[0]
+        .data =
+        state.batteryHistory
+            .map(x => x.value);
+
+
+    charts.powerChart.data.labels =
+        state.powerHistory
+            .map(x => x.label);
+
+
+    charts.powerChart
+        .data
+        .datasets[0]
+        .data =
+        state.powerHistory
+            .map(x => x.value);
+
+
+    charts.temperatureChart.data.labels =
+        state.temperatureHistory
+            .map(x => x.label);
+
+
+    charts.temperatureChart
+        .data
+        .datasets[0]
+        .data =
+        state.temperatureHistory
+            .map(x => x.motor);
+
+
+    charts.temperatureChart
+        .data
+        .datasets[1]
+        .data =
+        state.temperatureHistory
+            .map(x => x.mosfet);
+
+
+    charts.currentChart.data.labels =
+        state.currentHistory
+            .map(x => x.label);
+
+
+    charts.currentChart
+        .data
+        .datasets[0]
+        .data =
+        state.currentHistory
+            .map(x => x.motor);
+
+
+    charts.currentChart
+        .data
+        .datasets[1]
+        .data =
+        state.currentHistory
+            .map(x => x.battery);
+
+
+    Object.values(charts)
+        .forEach(
+            chart => chart.update()
+        );
+
+}
+
+
+/* ============================================================
+   SAVE RIDE
+============================================================ */
+
+function saveRide() {
+
+    if (
+        state.durationSec < 2 &&
+        state.distance < .001
+    ) {
+
+        return;
+
+    }
+
+
+    const average =
+        state.durationSec > 0
+            ? state.distance /
+              (state.durationSec / 3600)
+            : 0;
+
+
+    const efficiency =
+        state.distance > 0
+            ? state.wattHours /
+              state.distance
+            : 0;
+
+
+    const ride = {
+
+        id:
+            Date.now(),
+
+        date:
+            new Date()
+                .toLocaleDateString(),
+
+        time:
+            new Date()
+                .toLocaleTimeString(),
+
+        distance:
+            state.distance,
+
+        duration:
+            state.durationSec,
+
+        averageSpeed:
+            average,
+
+        maxSpeed:
+            state.maxSpeed,
+
+        energy:
+            state.wattHours,
+
+        efficiency:
+            efficiency,
+
+        batteryUsed:
+            100 -
+            state.batteryPercent,
+
+        mode:
+            state.mode
+
+    };
+
+
+    state.rides.unshift(
+        ride
+    );
+
+
+    /*
+        Persistent local storage.
+    */
+
+    localStorage.setItem(
+        "skateboardRides",
+        JSON.stringify(
+            state.rides
+        )
+    );
+
+
+    updateAnalytics();
+
+}
+
+
+/* ============================================================
+   HISTORY
+============================================================ */
+
+function loadHistory() {
+
+    try {
+
+        const saved =
+            localStorage.getItem(
+                "skateboardRides"
+            );
+
+
+        if (saved) {
+
+            state.rides =
+                JSON.parse(
+                    saved
+                );
+
+        }
+
+    }
+
+    catch(error) {
+
+        console.error(error);
+
+        state.rides = [];
+
+    }
+
+}
+
+
+function renderHistory() {
+
+    const container =
+        document.getElementById(
+            "historyList"
+        );
+
+
+    if (
+        state.rides.length === 0
+    ) {
+
+        container.innerHTML = `
+
+            <div class="glass rounded-2xl p-8 text-center">
+
+                <i class="fa-solid fa-route
+                          text-3xl
+                          text-slate-600">
+                </i>
+
+                <div class="text-sm
+                            font-black
+                            mt-3">
+
+                    No rides yet
+
+                </div>
+
+                <div class="text-[10px]
+                            text-slate-500
+                            mt-1">
+
+                    Completed rides will appear here.
+
+                </div>
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        state.rides
+            .map(
+                ride => `
+
+                <div class="glass
+                            rounded-2xl
+                            p-4">
+
+                    <div class="flex
+                                justify-between
+                                items-start">
+
+                        <div>
+
+                            <div class="text-xs
+                                        font-black">
+
+                                ${ride.date}
+
+                            </div>
+
+                            <div class="text-[9px]
+                                        text-slate-500
+                                        mt-1">
+
+                                ${ride.time}
+
+                            </div>
+
+                        </div>
+
+                        <div class="text-right">
+
+                            <div class="text-lg
+                                        font-black
+                                        cyan">
+
+                                ${ride.distance.toFixed(2)}
+
+                            </div>
+
+                            <div class="text-[8px]
+                                        text-slate-500">
+
+                                KM
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="grid
+                                grid-cols-4
+                                gap-2
+                                mt-4
+                                pt-3
+                                border-t
+                                border-slate-800">
+
+                        <div>
+
+                            <div class="text-[8px]
+                                        text-slate-500">
+
+                                TIME
+
+                            </div>
+
+                            <div class="text-[10px]
+                                        font-bold
+                                        mt-1">
+
+                                ${formatTime(
+                                    ride.duration
+                                )}
+
+                            </div>
+
+                        </div>
+
+
+                        <div>
+
+                            <div class="text-[8px]
+                                        text-slate-500">
+
+                                AVG
+
+                            </div>
+
+                            <div class="text-[10px]
+                                        font-bold
+                                        mt-1">
+
+                                ${ride.averageSpeed.toFixed(1)}
+
+                            </div>
+
+                        </div>
+
+
+                        <div>
+
+                            <div class="text-[8px]
+                                        text-slate-500">
+
+                                MAX
+
+                            </div>
+
+                            <div class="text-[10px]
+                                        font-bold
+                                        mt-1">
+
+                                ${ride.maxSpeed.toFixed(1)}
+
+                            </div>
+
+                        </div>
+
+
+                        <div>
+
+                            <div class="text-[8px]
+                                        text-slate-500">
+
+                                WH/KM
+
+                            </div>
+
+                            <div class="text-[10px]
+                                        font-bold
+                                        mt-1">
+
+                                ${ride.efficiency.toFixed(1)}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="mt-3
+                                text-[9px]
+                                text-slate-500">
+
+                        Mode:
+                        <span class="cyan font-bold">
+                            ${ride.mode}
+                        </span>
+
+                        • Energy:
+                        ${ride.energy.toFixed(1)} Wh
+
+                    </div>
+
+                </div>
+
+            `
+            )
+            .join("");
+
+}
+
+
+/* ============================================================
+   ANALYTICS
+============================================================ */
+
+function updateAnalytics() {
+
+    const rides =
+        state.rides;
+
+
+    const totalDistance =
+        rides.reduce(
+            (sum, r) =>
+                sum + Number(r.distance),
+            0
+        );
+
+
+    const totalEnergy =
+        rides.reduce(
+            (sum, r) =>
+                sum + Number(r.energy),
+            0
+        );
+
+
+    const topSpeed =
+        rides.reduce(
+            (max, r) =>
+                Math.max(
+                    max,
+                    Number(r.maxSpeed)
+                ),
+            0
+        );
+
+
+    document
+        .getElementById("totalDistance")
+        .textContent =
+        totalDistance.toFixed(2);
+
+
+    document
+        .getElementById("totalRides")
+        .textContent =
+        rides.length;
+
+
+    document
+        .getElementById("lifetimeTopSpeed")
+        .textContent =
+        topSpeed.toFixed(1);
+
+
+    document
+        .getElementById("totalEnergy")
+        .textContent =
+        totalEnergy.toFixed(0);
+
+
+    /*
+        Distance chart.
+    */
+
+    charts.distanceChart.data.labels =
+        rides
+            .slice()
+            .reverse()
+            .map(
+                (_, i) =>
+                    "Ride " + (i + 1)
+            );
+
+
+    charts.distanceChart
+        .data
+        .datasets[0]
+        .data =
+        rides
+            .slice()
+            .reverse()
+            .map(
+                r =>
+                    Number(r.distance)
+            );
+
+
+    charts.efficiencyChart.data.labels =
+        rides
+            .slice()
+            .reverse()
+            .map(
+                (_, i) =>
+                    "Ride " + (i + 1)
+            );
+
+
+    charts.efficiencyChart
+        .data
+        .datasets[0]
+        .data =
+        rides
+            .slice()
+            .reverse()
+            .map(
+                r =>
+                    Number(r.efficiency)
+            );
+
+
+    charts.distanceChart.update();
+
+    charts.efficiencyChart.update();
+
+
+    updateSpeedDistribution();
+
+}
+
+
+function updateSpeedDistribution() {
+
+    const zones =
+        state.speedZones;
+
+
+    const total =
+        zones.reduce(
+            (a,b) => a+b,
+            0
+        );
+
+
+    if (!total) {
+
+        return;
+
+    }
+
+
+    zones.forEach(
+        (value,index) => {
+
+            const percent =
+                value /
+                total *
+                100;
+
+
+            document
+                .getElementById(
+                    "speedZone" +
+                    (index + 1)
+                )
+                .textContent =
+                percent.toFixed(0)
+                + "%";
+
+
+            document
+                .getElementById(
+                    "speedBar" +
+                    (index + 1)
+                )
+                .style.width =
+                percent + "%";
+
+        }
+    );
+
+}
+
+
+/* ============================================================
+   CONNECTION UI
+============================================================ */
+
+function setConnectionUI(
+    status,
+    connected
+) {
+
+    document
+        .getElementById(
+            "connectionText"
+        )
+        .textContent =
+        status;
+
+
+    document
+        .getElementById(
+            "connectionStatus"
+        )
+        .textContent =
+        status;
+
+
+    document
+        .getElementById(
+            "connectionDetail"
+        )
+        .textContent =
+        connected
+            ? "Live telemetry from ESP32 receiver"
+            : "Using simulated telemetry";
+
+
+    document
+        .getElementById(
+            "connectionDot"
+        )
+        .className =
+        connected
+            ? "status-dot online"
+            : "status-dot";
+
+
+    document
+        .getElementById(
+            "boardBLEStatus"
+        )
+        .textContent =
+        connected
+            ? "CONNECTED"
+            : "DISCONNECTED";
+
+
+    document
+        .getElementById(
+            "boardBLEStatus"
+        )
+        .className =
+        connected
+            ? "text-xs font-bold mt-1 green"
+            : "text-xs font-bold mt-1 red";
+
+
+    document
+        .getElementById(
+            "bleButton"
+        )
+        .innerHTML =
+        connected
+            ? '<i class="fa-solid fa-link mr-1"></i> Connected'
+            : '<i class="fa-brands fa-bluetooth-b mr-1"></i> Connect';
+
+}
+
+
+/* ============================================================
+   TOAST
+============================================================ */
+
+let toastTimer;
+
+
+function showToast(message) {
+
+    const toast =
+        document.getElementById(
+            "toast"
+        );
+
+
+    toast.textContent =
+        message;
+
+
+    toast.classList.add(
+        "show"
+    );
+
+
+    clearTimeout(
+        toastTimer
+    );
+
+
+    toastTimer =
+        setTimeout(
+            () => {
+
+                toast.classList.remove(
+                    "show"
+                );
+
+            },
+            2500
+        );
+
+}
+
+
+/* ============================================================
+   TIME
+============================================================ */
+
+function formatTime(seconds) {
+
+    seconds =
+        Math.max(
+            0,
+            Math.floor(seconds)
+        );
+
+
+    const hours =
+        Math.floor(
+            seconds / 3600
+        );
+
+
+    const minutes =
+        Math.floor(
+            (seconds % 3600) / 60
+        );
+
+
+    const sec =
+        seconds % 60;
+
+
+    if (hours > 0) {
+
+        return (
+            String(hours).padStart(2,"0")
+            + ":" +
+            String(minutes).padStart(2,"0")
+            + ":" +
+            String(sec).padStart(2,"0")
+        );
+
+    }
+
+
+    return (
+        String(minutes).padStart(2,"0")
+        + ":" +
+        String(sec).padStart(2,"0")
+    );
+
+}
+
+
+/* ============================================================
+   CLEAR HISTORY
+============================================================ */
+
+function clearHistory() {
+
+    if (
+        !confirm(
+            "Delete all saved ride history?"
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    state.rides = [];
+
+
+    localStorage.removeItem(
+        "skateboardRides"
+    );
+
+
+    renderHistory();
+
+    updateAnalytics();
+
+
+    showToast(
+        "Ride history cleared"
+    );
+
+}
+
+
+/* ============================================================
+   MAIN LOOP
+============================================================ */
+
+setInterval(
+    simulationLoop,
+    100
+);
+
+
+setInterval(
+    () => {
+
+        updateLiveData();
+
+    },
+    1000
+);
+
+
+/* ============================================================
+   STARTUP
+============================================================ */
+
+window.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        initCharts();
+
+        loadHistory();
+
+        renderHistory();
+
+        updateAnalytics();
+
+        updateModeUI();
+
+        updateLiveData();
+
+        setConnectionUI(
+            "SIMULATION",
+            false
+        );
+
+    }
+);
+
+</script>
+
+</body>
+</html>
