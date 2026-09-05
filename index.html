@@ -90,6 +90,15 @@ button { -webkit-tap-highlight-color: transparent; }
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+.rider-chip {
+  transition: all .15s ease;
+}
+.rider-chip.selected {
+  background: rgba(0,229,255,.12) !important;
+  border-color: rgba(0,229,255,.5) !important;
+  color: #00E5FF !important;
+}
 </style>
 </head>
 
@@ -137,7 +146,7 @@ button { -webkit-tap-highlight-color: transparent; }
         <span class="text-[10px] uppercase text-gray-500">Board</span>
         <i class="fa-solid fa-microchip text-app-cyan"></i>
       </div>
-      <div id="boardStatus" class="text-sm font-bold mt-2 text-gray-300">Demo Board</div>
+      <div id="boardStatus" class="text-sm font-bold mt-2 text-gray-300">ESP32 Board</div>
       <div id="lastTelemetry" class="text-[9px] text-gray-500 mt-1">Dummy telemetry active</div>
     </div>
 
@@ -155,8 +164,8 @@ button { -webkit-tap-highlight-color: transparent; }
         <span class="text-[10px] uppercase text-gray-500">Ride Mode</span>
         <i class="fa-solid fa-gauge-high text-app-cyan"></i>
       </div>
-      <div id="modeDisplay" class="text-sm font-bold mt-2 text-gray-400">DEMO</div>
-      <div id="modeLimit"   class="text-[9px] text-gray-500 mt-1">Simulation mode</div>
+      <div id="modeDisplay" class="text-sm font-bold mt-2 text-gray-400">OFFLINE</div>
+      <div id="modeLimit"   class="text-[9px] text-gray-500 mt-1">Awaiting connection</div>
     </div>
 
     <div class="glass rounded-2xl p-4">
@@ -178,9 +187,9 @@ button { -webkit-tap-highlight-color: transparent; }
         <div class="text-[10px] uppercase tracking-widest text-gray-500">Current Speed</div>
         <div class="text-xs text-gray-400 mt-1">Live skateboard telemetry</div>
       </div>
-      <div id="simulationBadge"
+      <div id="offlineBadge"
         class="px-2 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-[9px] font-bold">
-        DEMO MODE
+        OFFLINE PREVIEW
       </div>
     </div>
 
@@ -299,6 +308,38 @@ button { -webkit-tap-highlight-color: transparent; }
     </div>
   </div>
 
+  <!-- Rider Selection -->
+  <div class="glass rounded-2xl p-4">
+    <div class="text-sm font-bold mb-1">Rider</div>
+    <div class="text-[9px] text-gray-500 mb-3">Select who is riding before starting</div>
+    <div class="grid grid-cols-2 gap-3" id="riderPicker">
+      <button type="button" onclick="selectRider('Paramee Dewmini', 50)" id="riderChip-paramee"
+        class="rider-chip panel rounded-xl p-3 text-left border border-app-border">
+        <div class="text-xs font-bold">Paramee Dewmini</div>
+        <div class="text-[9px] text-gray-500 mt-1">50 kg</div>
+      </button>
+      <button type="button" onclick="selectRider('Poojitha Dilshan', 80)" id="riderChip-poojitha"
+        class="rider-chip panel rounded-xl p-3 text-left border border-app-border">
+        <div class="text-xs font-bold">Poojitha Dilshan</div>
+        <div class="text-[9px] text-gray-500 mt-1">80 kg</div>
+      </button>
+    </div>
+    <div class="mt-3">
+      <label class="text-[9px] uppercase text-gray-500">Route Slope</label>
+      <select id="slopeSelect"
+        class="w-full mt-1 panel rounded-xl px-3 py-2 text-xs text-gray-200 border border-app-border">
+        <option value="0" selected>Flat (0°)</option>
+        <option value="2">Gentle rise (2°)</option>
+        <option value="-2">Gentle drop (-2°)</option>
+        <option value="5">Moderate climb (5°)</option>
+        <option value="-5">Moderate descent (-5°)</option>
+        <option value="10">Steep climb (10°)</option>
+        <option value="-10">Steep descent (-10°)</option>
+        <option value="20">Very steep climb (20°)</option>
+      </select>
+    </div>
+  </div>
+
   <!-- Start / Stop -->
   <div class="glass rounded-2xl p-4">
     <div class="flex items-center justify-between">
@@ -411,6 +452,12 @@ button { -webkit-tap-highlight-color: transparent; }
     <div class="chart-container"><canvas id="efficiencyChart"></canvas></div>
   </div>
 
+  <div class="glass rounded-2xl p-4">
+    <div class="text-sm font-bold">Rider Weight Comparison</div>
+    <div class="text-[9px] text-gray-500 mb-3">Average speed and efficiency by rider</div>
+    <div class="chart-container"><canvas id="riderComparisonChart"></canvas></div>
+  </div>
+
 </section>
 
 <!-- ────────────── HISTORY ────────────── -->
@@ -466,7 +513,7 @@ button { -webkit-tap-highlight-color: transparent; }
       </div>
       <div class="panel rounded-xl p-3">
         <div class="text-[9px] text-gray-500">Ride Mode</div>
-        <div id="boardMode" class="text-sm font-bold mt-1">DEMO</div>
+        <div id="boardMode" class="text-sm font-bold mt-1">OFFLINE</div>
       </div>
     </div>
   </div>
@@ -510,7 +557,7 @@ button { -webkit-tap-highlight-color: transparent; }
       </div>
       <div class="flex justify-between panel rounded-xl p-3">
         <span class="text-xs">Communication</span>
-        <span id="communicationSafety" class="text-xs font-bold text-app-green">DEMO</span>
+        <span id="communicationSafety" class="text-xs font-bold text-app-green">OFFLINE</span>
       </div>
     </div>
   </div>
@@ -522,6 +569,8 @@ button { -webkit-tap-highlight-color: transparent; }
       is a professional telemetry and ride analytics system developed as part of an engineering research project.
       <br><br>
       Developed by <strong class="text-app-cyan">Poojitha Dilshan</strong>
+      <br>
+      Test Rider: <strong class="text-app-purple">Paramee Dewmini</strong>
       <br><br>
       The system combines ESP32 communication, VESC telemetry, ride tracking, battery monitoring,
       motor monitoring and performance analytics.
@@ -639,7 +688,7 @@ let bleCharacteristic = null;
 /* ─── STATE ─── */
 const state = {
   connected: false,
-  simulation: true,
+  offline: true,
   riding: false,
   armed: false,
   mode: null,
@@ -662,11 +711,22 @@ const state = {
   startTime: null,
   lastTelemetry: Date.now(),
   telemetryHistory: [],
-  rides: []
+  rides: [],
+  riderName: "Paramee Dewmini",
+  riderWeightKg: 50,
+  slopeDeg: 0
 };
 
 /* ─── CHARTS ─── */
 let charts = {};
+
+/* ─── RIDER SELECTION ─── */
+function selectRider(name, weightKg) {
+  state.riderName = name;
+  state.riderWeightKg = weightKg;
+  document.getElementById("riderChip-paramee").classList.toggle("selected", name === "Paramee Dewmini");
+  document.getElementById("riderChip-poojitha").classList.toggle("selected", name === "Poojitha Dilshan");
+}
 
 /* ─── PAGE NAV ─── */
 function showPage(page) {
@@ -707,8 +767,8 @@ async function connectBLE() {
     bleCharacteristic.addEventListener("characteristicvaluechanged", handleBLEData);
 
     state.connected  = true;
-    state.simulation = false;
-    document.getElementById("simulationBadge").classList.add("hidden");
+    state.offline = false;
+    document.getElementById("offlineBadge").classList.add("hidden");
     setConnection("CONNECTED", "green");
     document.getElementById("connectButton").innerHTML =
       '<i class="fa-brands fa-bluetooth-b"></i> CONNECTED';
@@ -725,8 +785,8 @@ async function connectBLE() {
 
 function handleBLEDisconnected() {
   state.connected  = false;
-  state.simulation = true;
-  document.getElementById("simulationBadge").classList.remove("hidden");
+  state.offline = true;
+  document.getElementById("offlineBadge").classList.remove("hidden");
   setConnection("DISCONNECTED", "red");
 }
 
@@ -782,11 +842,11 @@ function applyTelemetry(data) {
   updateUI();
 }
 
-/* ─── SIMULATION ─── */
+/* ─── OFFLINE PREVIEW TICK ─── */
 let simPhase = 0;
 
-function simulationTick() {
-  if (!state.simulation) return;
+function offlinePreviewTick() {
+  if (!state.offline) return;
   simPhase += 0.25;
 
   let target = state.riding
@@ -847,7 +907,7 @@ setInterval(() => {
   updateUI();
 }, 1000);
 
-setInterval(simulationTick, 1000);
+setInterval(offlinePreviewTick, 1000);
 
 /* ─── UI UPDATE ─── */
 function updateUI() {
@@ -894,7 +954,7 @@ function updateModeUI() {
     1: { name: "NORMAL",   limit: "10–20 km/h" },
     2: { name: "PRO",      limit: "20+ km/h" }
   };
-  const m = modes[state.mode] || { name: "DEMO", limit: "Simulation mode" };
+  const m = modes[state.mode] || { name: "OFFLINE", limit: "Awaiting connection" };
   setText("modeDisplay", m.name);
   setText("modeLimit",   m.limit);
   setText("boardMode",   m.name);
@@ -912,7 +972,7 @@ function updateSafety() {
   if      (state.motorTemp >= 80)  { safe = false; message = "High motor temperature"; }
   else if (state.mosfetTemp >= 75) { safe = false; message = "High MOSFET temperature"; }
   else if (state.battery <= 15)    { safe = false; message = "Low battery"; }
-  else if (!state.simulation && Date.now() - state.lastTelemetry > 3000)
+  else if (!state.offline && Date.now() - state.lastTelemetry > 3000)
                                    { safe = false; message = "Telemetry timeout"; }
 
   const el = document.getElementById("safetyStatus");
@@ -924,7 +984,7 @@ function updateSafety() {
   setText("motorSafety",   state.motorTemp  >= 80 ? "HIGH"    : "NORMAL");
   setText("mosfetSafety",  state.mosfetTemp >= 75 ? "HIGH"    : "NORMAL");
   setText("batterySafety", state.battery    <= 15 ? "LOW"     : "NORMAL");
-  setText("communicationSafety", state.simulation ? "DEMO"
+  setText("communicationSafety", state.offline ? "OFFLINE"
     : Date.now() - state.lastTelemetry < 3000 ? "NORMAL" : "TIMEOUT");
 }
 
@@ -939,6 +999,7 @@ function startRide() {
   state.startBattery = state.battery;
   state.startTime = new Date();
   state.telemetryHistory = [];
+  state.slopeDeg = Number(document.getElementById("slopeSelect").value);
   const btn = document.getElementById("rideButton");
   btn.innerHTML = '<i class="fa-solid fa-stop mr-1"></i>END RIDE';
   btn.className = "px-6 py-3 rounded-xl bg-app-red text-white font-black text-xs uppercase";
@@ -965,6 +1026,7 @@ function finishRide() {
 /* ─── SAVE RIDE ─── */
 async function saveCurrentRide() {
   const eff = state.distance > 0 ? state.energy / state.distance : 0;
+  const modeNames = { 0: "beginner", 1: "normal", 2: "pro" };
   const payload = {
     developer_id:       "Poojitha Dilshan",
     duration_seconds:   Math.round(state.duration),
@@ -977,7 +1039,11 @@ async function saveCurrentRide() {
     end_battery_pct:    Number(state.battery.toFixed(2)),
     max_motor_temp:     Number(getMaxTelemetry("motorTemp").toFixed(2)),
     max_mosfet_temp:    Number(getMaxTelemetry("mosfetTemp").toFixed(2)),
-    route_json:         { simulated: state.simulation, points: [] }
+    route_json:         { points: [] },
+    rider_name:         state.riderName,
+    rider_weight_kg:    state.riderWeightKg,
+    ride_mode:          modeNames[state.mode] || "normal",
+    slope_deg:          state.slopeDeg
   };
 
   try {
@@ -1045,6 +1111,14 @@ async function loadRides() {
             <div class="text-sm font-bold">Ride ${state.rides.length - i}</div>
             <div class="text-[9px] text-gray-500">${formatDate(ride.created_at)}</div>
             <div class="text-[9px] text-gray-600 mt-1">${formatTime(ride.duration_seconds)}</div>
+            ${ride.rider_name ? `
+            <div class="flex items-center gap-1 mt-2 flex-wrap">
+              <span class="px-2 py-0.5 rounded-full bg-app-purple/10 text-app-purple border border-app-purple/20 text-[8px] font-bold">
+                ${escapeHtml(ride.rider_name)}${ride.rider_weight_kg ? ` · ${ride.rider_weight_kg}kg` : ""}
+              </span>
+              ${ride.ride_mode ? `<span class="px-2 py-0.5 rounded-full bg-app-cyan/10 text-app-cyan border border-app-cyan/20 text-[8px] font-bold uppercase">${escapeHtml(ride.ride_mode)}</span>` : ""}
+              ${(ride.slope_deg !== null && ride.slope_deg !== undefined && ride.slope_deg !== 0) ? `<span class="px-2 py-0.5 rounded-full bg-app-yellow/10 text-app-yellow border border-app-yellow/20 text-[8px] font-bold">${ride.slope_deg > 0 ? "+" : ""}${ride.slope_deg}°</span>` : ""}
+            </div>` : ""}
           </div>
           <div class="text-right">
             <div class="text-lg font-black text-app-cyan">${Number(ride.distance_km||0).toFixed(2)} km</div>
@@ -1137,6 +1211,12 @@ function initCharts() {
 
   charts.efficiency = createChart("efficiencyChart", "line", [],
     [{ label:"Wh/km", data:[], borderColor:"#00E676", tension:.3 }]);
+
+  charts.riderComparison = createChart("riderComparisonChart", "bar",
+    [], [
+      { label:"Avg Speed (km/h)", data:[], backgroundColor:"#00E5FF" },
+      { label:"Efficiency (Wh/km)", data:[], backgroundColor:"#9C7CFF" }
+    ]);
 }
 
 /* ─── LIVE CHART UPDATE ─── */
@@ -1197,6 +1277,36 @@ function updateAnalyticsCharts() {
   });
   charts.distribution.data.datasets[0].data = buckets.map(s => +(s / 60).toFixed(1));
   charts.distribution.update("none");
+
+  updateRiderComparisonChart(rides);
+}
+
+/* ─── RIDER WEIGHT COMPARISON ─── */
+function updateRiderComparisonChart(rides) {
+  const byRider = {};
+  rides.forEach(r => {
+    const name = r.rider_name || "Unspecified";
+    const weight = r.rider_weight_kg;
+    const key = weight ? `${name} (${weight}kg)` : name;
+    if (!byRider[key]) byRider[key] = { avgSpeeds: [], effs: [] };
+    if (r.avg_speed_kmh !== null && r.avg_speed_kmh !== undefined) byRider[key].avgSpeeds.push(Number(r.avg_speed_kmh));
+    if (r.efficiency_wh_km !== null && r.efficiency_wh_km !== undefined) byRider[key].effs.push(Number(r.efficiency_wh_km));
+  });
+
+  const riderKeys = Object.keys(byRider);
+  const avgSpeedData = riderKeys.map(k => {
+    const arr = byRider[k].avgSpeeds;
+    return arr.length ? +(arr.reduce((a,b)=>a+b,0) / arr.length).toFixed(2) : 0;
+  });
+  const effData = riderKeys.map(k => {
+    const arr = byRider[k].effs;
+    return arr.length ? +(arr.reduce((a,b)=>a+b,0) / arr.length).toFixed(2) : 0;
+  });
+
+  charts.riderComparison.data.labels            = riderKeys;
+  charts.riderComparison.data.datasets[0].data = avgSpeedData;
+  charts.riderComparison.data.datasets[1].data = effData;
+  charts.riderComparison.update("none");
 }
 
 /* ─── HELPERS ─── */
@@ -1244,8 +1354,8 @@ function closeSummary() {
   m.classList.remove("flex");
 }
 
-/* ─── DEMO DATA (so Ride page isn't blank on first open) ─── */
-function generateDemoTelemetry() {
+/* ─── OFFLINE PREVIEW DATA (so Ride page isn't blank before a board connects) ─── */
+function generateOfflinePreviewTelemetry() {
   if (state.telemetryHistory.length > 0) return;
   let battery = 92;
   for (let i = 0; i < 60; i++) {
@@ -1267,7 +1377,8 @@ function generateDemoTelemetry() {
 /* ─── INIT ─── */
 window.addEventListener("DOMContentLoaded", async () => {
   initCharts();
-  generateDemoTelemetry();
+  generateOfflinePreviewTelemetry();
+  selectRider("Paramee Dewmini", 50);
   updateUI();
   await loadRides();
   loadAnalytics();
