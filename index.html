@@ -3,307 +3,2169 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f172a">
 <title>Smart Electric Skateboard | Research Dashboard</title>
+
+<!-- External libraries -->
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/js/all.min.js"></script>
+
 <style>
-  body{font-family:Inter,system-ui,sans-serif;background:#f5f7fb;color:#172033}
-  .card{background:#fff;border:1px solid #e6eaf0;border-radius:18px;box-shadow:0 6px 24px rgba(20,30,50,.05)}
-  .navbtn.active{background:#172033;color:#fff}.navbtn{border-radius:10px}
-  .value{font-variant-numeric:tabular-nums}
-  .gauge{background:conic-gradient(#172033 var(--p),#e8edf3 0);border-radius:50%;width:190px;height:190px;display:grid;place-items:center}
-  .gauge:before{content:"";width:150px;height:150px;background:#fff;border-radius:50%;position:absolute}
-  .gauge-inner{position:relative;z-index:1;text-align:center}
-  canvas{max-height:300px}
+:root{
+  --bg:#f5f7fb;
+  --card:#ffffff;
+  --text:#172033;
+  --muted:#64748b;
+  --line:#e2e8f0;
+  --dark:#0f172a;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:0 8px 28px rgba(15,23,42,.055)}
+.metric{font-variant-numeric:tabular-nums}
+.nav-btn{transition:.15s}
+.nav-btn.active{background:#0f172a;color:white}
+.page{display:none}
+.page.active{display:block}
+.small-label{font-size:.75rem;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .65rem;border-radius:999px;font-size:.75rem;font-weight:600}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#94a3b8}
+.status-dot.ok{background:#16a34a}
+.status-dot.warn{background:#f59e0b}
+.status-dot.bad{background:#dc2626}
+.gauge{
+  width:210px;height:210px;border-radius:50%;
+  background:conic-gradient(#0f172a var(--angle),#e5e7eb 0deg);
+  display:grid;place-items:center;position:relative;
+}
+.gauge::after{
+  content:"";position:absolute;width:168px;height:168px;border-radius:50%;
+  background:#fff;
+}
+.gauge-inner{position:relative;z-index:2;text-align:center}
+.progress{height:9px;border-radius:99px;background:#e5e7eb;overflow:hidden}
+.progress>div{height:100%;background:#0f172a;border-radius:99px;transition:.25s}
+table th,table td{white-space:nowrap}
+.modal-backdrop{background:rgba(15,23,42,.48)}
+.toast{animation:toastIn .2s ease-out}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+canvas{max-width:100%}
+pre{white-space:pre-wrap;word-break:break-word}
 </style>
 </head>
+
 <body>
-<header class="bg-white border-b sticky top-0 z-20">
-  <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
-    <div>
-      <h1 class="text-xl font-bold">Smart Electric Skateboard</h1>
-      <p class="text-xs text-slate-500">Research Telemetry & Ride Analytics</p>
-    </div>
-    <div class="flex gap-2 items-center text-sm">
-      <span id="dbBadge" class="px-3 py-1 rounded-full bg-slate-100">Supabase: checking</span>
-      <span id="bleBadge" class="px-3 py-1 rounded-full bg-slate-100">BLE: disconnected</span>
-      <button id="connectBtn" class="px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold">Connect Skateboard</button>
+
+<!-- =========================================================
+     HEADER
+========================================================= -->
+<header class="bg-white border-b sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 py-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-slate-900 text-white grid place-items-center">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <div>
+            <h1 class="text-xl md:text-2xl font-bold">Smart Electric Skateboard</h1>
+            <p class="text-xs text-slate-500">Research Telemetry, Ride Logging & Analytics</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="supabaseBadge" class="badge bg-slate-100 text-slate-700">
+          <span class="status-dot"></span> Supabase
+        </span>
+        <span id="bleBadge" class="badge bg-slate-100 text-slate-700">
+          <span class="status-dot"></span> BLE disconnected
+        </span>
+        <button id="connectBtn" class="px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800">
+          <i class="fa-brands fa-bluetooth-b mr-1"></i> Connect Skateboard
+        </button>
+        <button id="disconnectBtn" class="hidden px-4 py-2 rounded-xl border border-slate-300 font-semibold">
+          Disconnect
+        </button>
+      </div>
     </div>
   </div>
 </header>
 
-<nav class="max-w-7xl mx-auto px-4 py-3 flex gap-2 overflow-x-auto">
-  <button class="navbtn active px-4 py-2" data-page="home">Dashboard</button>
-  <button class="navbtn px-4 py-2" data-page="live">Live Ride</button>
-  <button class="navbtn px-4 py-2" data-page="analytics">Analytics</button>
-  <button class="navbtn px-4 py-2" data-page="history">History</button>
-  <button class="navbtn px-4 py-2" data-page="board">Board</button>
+<!-- =========================================================
+     NAVIGATION
+========================================================= -->
+<nav class="bg-white border-b">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex gap-2 overflow-x-auto">
+    <button class="nav-btn active px-4 py-2 rounded-xl" data-page="dashboard">
+      <i class="fa-solid fa-gauge-high mr-1"></i> Dashboard
+    </button>
+    <button class="nav-btn px-4 py-2 rounded-xl" data-page="live">
+      <i class="fa-solid fa-chart-line mr-1"></i> Live Ride
+    </button>
+    <button class="nav-btn px-4 py-2 rounded-xl" data-page="analytics">
+      <i class="fa-solid fa-chart-column mr-1"></i> Analytics
+    </button>
+    <button class="nav-btn px-4 py-2 rounded-xl" data-page="history">
+      <i class="fa-solid fa-clock-rotate-left mr-1"></i> History
+    </button>
+    <button class="nav-btn px-4 py-2 rounded-xl" data-page="board">
+      <i class="fa-solid fa-microchip mr-1"></i> Board
+    </button>
+    <button class="nav-btn px-4 py-2 rounded-xl" data-page="settings">
+      <i class="fa-solid fa-gear mr-1"></i> Settings
+    </button>
+  </div>
 </nav>
 
-<main class="max-w-7xl mx-auto px-4 pb-10">
+<main class="max-w-7xl mx-auto px-4 py-5 pb-16">
 
-<section id="home" class="page">
-  <div class="grid lg:grid-cols-4 md:grid-cols-2 gap-4 mb-4">
-    <div class="card p-5"><p class="text-sm text-slate-500">Board</p><p id="boardState" class="text-2xl font-bold mt-1">Disconnected</p></div>
-    <div class="card p-5"><p class="text-sm text-slate-500">Ride Mode</p><p id="modeState" class="text-2xl font-bold mt-1">—</p></div>
-    <div class="card p-5"><p class="text-sm text-slate-500">Battery</p><p id="batteryState" class="text-2xl font-bold mt-1">—</p></div>
-    <div class="card p-5"><p class="text-sm text-slate-500">System</p><p id="systemState" class="text-2xl font-bold mt-1">Waiting</p></div>
+<!-- =========================================================
+     DASHBOARD
+========================================================= -->
+<section id="dashboard" class="page active">
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+    <div class="card p-4">
+      <p class="small-label">Receiver</p>
+      <div class="flex items-center gap-2 mt-1">
+        <span id="receiverDot" class="status-dot"></span>
+        <p id="receiverState" class="font-bold text-lg">Disconnected</p>
+      </div>
+    </div>
+
+    <div class="card p-4">
+      <p class="small-label">Ride Mode</p>
+      <p id="dashboardMode" class="font-bold text-lg mt-1">Normal</p>
+    </div>
+
+    <div class="card p-4">
+      <p class="small-label">Battery</p>
+      <p id="dashboardBattery" class="font-bold text-lg mt-1">—</p>
+    </div>
+
+    <div class="card p-4">
+      <p class="small-label">Telemetry</p>
+      <p id="dashboardTelemetry" class="font-bold text-lg mt-1">Waiting</p>
+    </div>
   </div>
 
   <div class="grid lg:grid-cols-3 gap-4">
-    <div class="card p-6 flex flex-col items-center justify-center">
-      <h2 class="font-bold mb-4">Current Speed</h2>
-      <div id="gauge" class="gauge relative" style="--p:0deg">
-        <div class="gauge-inner"><div id="speed" class="text-4xl font-bold value">0.00</div><div class="text-sm text-slate-500">km/h</div></div>
+
+    <!-- SPEED -->
+    <div class="card p-6 flex flex-col items-center">
+      <div class="w-full flex justify-between items-center mb-4">
+        <div>
+          <h2 class="font-bold text-lg">Vehicle Speed</h2>
+          <p class="text-xs text-slate-500">Receiver supplied speed value</p>
+        </div>
+        <span id="speedQualityBadge" class="badge bg-slate-100 text-slate-600">No data</span>
       </div>
-      <div class="grid grid-cols-3 gap-4 mt-6 text-center w-full">
-        <div><p class="text-xs text-slate-500">Distance</p><p id="distance" class="font-bold">0.000 km</p></div>
-        <div><p class="text-xs text-slate-500">Duration</p><p id="duration" class="font-bold">00:00</p></div>
-        <div><p class="text-xs text-slate-500">Avg Speed</p><p id="avgSpeed" class="font-bold">0.00 km/h</p></div>
+
+      <div id="speedGauge" class="gauge" style="--angle:0deg">
+        <div class="gauge-inner">
+          <div id="speedValue" class="text-5xl font-bold metric">0.00</div>
+          <div class="text-sm text-slate-500">km/h</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 w-full mt-6 text-center">
+        <div>
+          <p class="small-label">Distance</p>
+          <p id="dashboardDistance" class="font-bold metric">0.000 km</p>
+        </div>
+        <div>
+          <p class="small-label">Duration</p>
+          <p id="dashboardDuration" class="font-bold metric">00:00:00</p>
+        </div>
+        <div>
+          <p class="small-label">Avg speed</p>
+          <p id="dashboardAvgSpeed" class="font-bold metric">0.00 km/h</p>
+        </div>
       </div>
     </div>
 
+    <!-- BATTERY -->
     <div class="card p-6">
-      <h2 class="font-bold text-lg">Battery</h2>
-      <p class="text-sm text-slate-500 mt-1">Nominal system specification</p>
-      <div class="mt-5 space-y-3">
+      <div class="flex justify-between items-start">
+        <div>
+          <h2 class="font-bold text-lg">Battery</h2>
+          <p class="text-xs text-slate-500">System specification + live VESC values</p>
+        </div>
+        <i class="fa-solid fa-battery-half text-slate-400 text-xl"></i>
+      </div>
+
+      <div class="mt-6 space-y-4">
+        <div class="flex justify-between">
+          <span>Live voltage</span>
+          <b id="batteryVoltage">—</b>
+        </div>
+        <div class="flex justify-between">
+          <span>Battery current</span>
+          <b id="batteryCurrent">—</b>
+        </div>
+        <div class="flex justify-between">
+          <span>Battery percentage</span>
+          <b id="batteryPercent">—</b>
+        </div>
+
+        <div>
+          <div class="flex justify-between text-xs text-slate-500 mb-1">
+            <span>Battery level</span>
+            <span id="batteryPercentLabel">—</span>
+          </div>
+          <div class="progress">
+            <div id="batteryProgress" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t space-y-2">
+          <div class="flex justify-between text-sm">
+            <span>Nominal voltage</span><b>33.3 V</b>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span>Capacity</span><b>2.2 Ah</b>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span>Nominal energy</span><b>≈73.3 Wh</b>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIVE VESC -->
+    <div class="card p-6">
+      <div class="flex justify-between items-start">
+        <div>
+          <h2 class="font-bold text-lg">Live VESC Telemetry</h2>
+          <p class="text-xs text-slate-500">Data received from Receiver ESP32</p>
+        </div>
+        <i class="fa-solid fa-microchip text-slate-400 text-xl"></i>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mt-5">
+        <div class="bg-slate-50 rounded-xl p-3">
+          <span class="small-label">RPM</span>
+          <b id="rpm" class="block text-xl metric">—</b>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3">
+          <span class="small-label">Motor current</span>
+          <b id="motorCurrent" class="block text-xl metric">—</b>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3">
+          <span class="small-label">Motor temperature</span>
+          <b id="motorTemp" class="block text-xl metric">—</b>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3">
+          <span class="small-label">MOSFET temperature</span>
+          <b id="mosfetTemp" class="block text-xl metric">—</b>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3">
+          <span class="small-label">Power</span>
+          <b id="power" class="block text-xl metric">—</b>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3">
+          <span class="small-label">Duty cycle</span>
+          <b id="dutyCycle" class="block text-xl metric">—</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIDE CONTROLS / METADATA -->
+  <div class="card p-6 mt-4">
+    <div class="flex flex-wrap justify-between gap-3 items-center">
+      <div>
+        <h2 class="font-bold text-lg">Ride Recording</h2>
+        <p class="text-xs text-slate-500">Start recording only after a valid BLE telemetry stream is available.</p>
+      </div>
+      <span id="recordingBadge" class="badge bg-slate-100 text-slate-600">
+        <span class="status-dot"></span> Not recording
+      </span>
+    </div>
+
+    <div class="grid md:grid-cols-4 gap-3 mt-5">
+      <div>
+        <label class="small-label block mb-1">Rider name</label>
+        <input id="riderName" class="w-full border border-slate-300 rounded-xl px-3 py-2" placeholder="Rider name">
+      </div>
+      <div>
+        <label class="small-label block mb-1">Rider weight (kg)</label>
+        <input id="riderWeight" type="number" min="0" step="0.1" class="w-full border border-slate-300 rounded-xl px-3 py-2" placeholder="e.g. 50">
+      </div>
+      <div>
+        <label class="small-label block mb-1">Slope (°)</label>
+        <input id="rideSlope" type="number" step="0.1" class="w-full border border-slate-300 rounded-xl px-3 py-2" placeholder="e.g. 0">
+      </div>
+      <div>
+        <label class="small-label block mb-1">Ride mode</label>
+        <select id="rideMode" class="w-full border border-slate-300 rounded-xl px-3 py-2">
+          <option value="beginner">Beginner</option>
+          <option value="normal" selected>Normal</option>
+          <option value="pro">Pro</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-4 gap-3 mt-3">
+      <input id="rideLabel" class="md:col-span-3 border border-slate-300 rounded-xl px-3 py-2" placeholder="Ride label / test description">
+      <button id="startRideBtn" class="rounded-xl bg-slate-900 text-white font-semibold px-4 py-2">
+        <i class="fa-solid fa-play mr-1"></i> Start Ride
+      </button>
+    </div>
+
+    <div class="grid md:grid-cols-4 gap-3 mt-3">
+      <div class="bg-slate-50 rounded-xl p-3">
+        <span class="small-label">Start battery</span>
+        <b id="rideStartBattery" class="block">—</b>
+      </div>
+      <div class="bg-slate-50 rounded-xl p-3">
+        <span class="small-label">Current distance</span>
+        <b id="rideDistance" class="block">0.000 km</b>
+      </div>
+      <div class="bg-slate-50 rounded-xl p-3">
+        <span class="small-label">Current duration</span>
+        <b id="rideDuration" class="block">00:00:00</b>
+      </div>
+      <button id="endRideBtn" disabled class="rounded-xl border border-slate-300 font-semibold px-4 py-2">
+        <i class="fa-solid fa-stop mr-1"></i> End & Save Ride
+      </button>
+    </div>
+
+    <p id="rideStatus" class="text-sm text-slate-500 mt-4">No active ride.</p>
+  </div>
+
+  <!-- SYSTEM STATUS -->
+  <div class="grid md:grid-cols-3 gap-4 mt-4">
+    <div class="card p-5">
+      <h3 class="font-bold">Connection Status</h3>
+      <div class="mt-4 space-y-2 text-sm">
+        <div class="flex justify-between"><span>BLE</span><b id="statusBLE">Disconnected</b></div>
+        <div class="flex justify-between"><span>Telemetry age</span><b id="telemetryAge">—</b></div>
+        <div class="flex justify-between"><span>VESC telemetry</span><b id="statusVesc">—</b></div>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="font-bold">Thermal Status</h3>
+      <div class="mt-4 space-y-2 text-sm">
+        <div class="flex justify-between"><span>Motor</span><b id="thermalMotor">—</b></div>
+        <div class="flex justify-between"><span>MOSFET</span><b id="thermalMosfet">—</b></div>
+        <div class="flex justify-between"><span>Overall</span><b id="thermalOverall">Waiting</b></div>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="font-bold">Data Quality</h3>
+      <div class="mt-4 space-y-2 text-sm">
+        <div class="flex justify-between"><span>Samples received</span><b id="sampleCount">0</b></div>
+        <div class="flex justify-between"><span>Last update</span><b id="lastUpdate">—</b></div>
+        <div class="flex justify-between"><span>Fault code</span><b id="dashboardFault">—</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     LIVE
+========================================================= -->
+<section id="live" class="page">
+
+  <div class="card p-5 mb-4">
+    <div class="flex flex-wrap justify-between items-center gap-3">
+      <div>
+        <h2 class="font-bold text-xl">Live Ride Charts</h2>
+        <p class="text-sm text-slate-500">Charts use telemetry received during the current browser session.</p>
+      </div>
+      <button id="clearLiveCharts" class="border border-slate-300 rounded-xl px-3 py-2">
+        Clear Charts
+      </button>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-4">
+    <div class="card p-5"><h3 class="font-bold mb-3">Speed</h3><canvas id="speedChart"></canvas></div>
+    <div class="card p-5"><h3 class="font-bold mb-3">Power</h3><canvas id="powerChart"></canvas></div>
+    <div class="card p-5"><h3 class="font-bold mb-3">Battery Voltage</h3><canvas id="voltageChart"></canvas></div>
+    <div class="card p-5"><h3 class="font-bold mb-3">Temperature</h3><canvas id="temperatureChart"></canvas></div>
+    <div class="card p-5"><h3 class="font-bold mb-3">Motor Current</h3><canvas id="currentChart"></canvas></div>
+    <div class="card p-5"><h3 class="font-bold mb-3">RPM</h3><canvas id="rpmChart"></canvas></div>
+    <div class="card p-5 lg:col-span-2"><h3 class="font-bold mb-3">Duty Cycle</h3><canvas id="dutyChart"></canvas></div>
+  </div>
+
+  <div class="card p-5 mt-4">
+    <h3 class="font-bold">Latest Raw BLE Packet</h3>
+    <pre id="rawTelemetry" class="bg-slate-950 text-slate-100 rounded-xl p-4 mt-3 text-xs overflow-auto">Waiting for telemetry…</pre>
+  </div>
+</section>
+
+<!-- =========================================================
+     ANALYTICS
+========================================================= -->
+<section id="analytics" class="page">
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+    <div class="card p-5"><span class="small-label">Total distance</span><b id="analyticsDistance" class="block text-2xl mt-1">0.00 km</b></div>
+    <div class="card p-5"><span class="small-label">Total rides</span><b id="analyticsRides" class="block text-2xl mt-1">0</b></div>
+    <div class="card p-5"><span class="small-label">Top speed</span><b id="analyticsTopSpeed" class="block text-2xl mt-1">0.00 km/h</b></div>
+    <div class="card p-5"><span class="small-label">Total energy</span><b id="analyticsEnergy" class="block text-2xl mt-1">0.00 Wh</b></div>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-4">
+    <div class="card p-5">
+      <h3 class="font-bold mb-3">Distance by Ride Mode</h3>
+      <canvas id="modeDistanceChart"></canvas>
+    </div>
+    <div class="card p-5">
+      <h3 class="font-bold mb-3">Mean Efficiency by Ride Mode</h3>
+      <canvas id="modeEfficiencyChart"></canvas>
+    </div>
+    <div class="card p-5">
+      <h3 class="font-bold mb-3">Efficiency Trend</h3>
+      <canvas id="efficiencyTrendChart"></canvas>
+    </div>
+    <div class="card p-5">
+      <h3 class="font-bold mb-3">Average Speed by Ride Mode</h3>
+      <canvas id="modeSpeedChart"></canvas>
+    </div>
+    <div class="card p-5 lg:col-span-2">
+      <h3 class="font-bold mb-3">Rider Weight Comparison</h3>
+      <canvas id="weightComparisonChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card p-5 mt-4">
+    <h3 class="font-bold">Dataset Summary</h3>
+    <div class="grid md:grid-cols-4 gap-3 mt-4 text-sm">
+      <div class="bg-slate-50 rounded-xl p-3"><span class="small-label">Mean ride distance</span><b id="meanDistance" class="block">—</b></div>
+      <div class="bg-slate-50 rounded-xl p-3"><span class="small-label">Mean ride duration</span><b id="meanDuration" class="block">—</b></div>
+      <div class="bg-slate-50 rounded-xl p-3"><span class="small-label">Weighted efficiency</span><b id="weightedEfficiency" class="block">—</b></div>
+      <div class="bg-slate-50 rounded-xl p-3"><span class="small-label">Mean battery drop</span><b id="meanBatteryDrop" class="block">—</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     HISTORY
+========================================================= -->
+<section id="history" class="page">
+
+  <div class="card p-5">
+    <div class="flex flex-wrap justify-between items-center gap-3">
+      <div>
+        <h2 class="font-bold text-xl">Ride History</h2>
+        <p class="text-sm text-slate-500">Completed rides stored in Supabase.</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="refreshHistory" class="border border-slate-300 rounded-xl px-3 py-2">
+          <i class="fa-solid fa-rotate mr-1"></i> Refresh
+        </button>
+        <button id="exportHistory" class="border border-slate-300 rounded-xl px-3 py-2">
+          <i class="fa-solid fa-file-csv mr-1"></i> Export CSV
+        </button>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-4 gap-3 mt-4">
+      <input id="historySearch" class="border border-slate-300 rounded-xl px-3 py-2" placeholder="Search rider / label / mode">
+      <select id="historyModeFilter" class="border border-slate-300 rounded-xl px-3 py-2">
+        <option value="">All modes</option>
+        <option value="beginner">Beginner</option>
+        <option value="normal">Normal</option>
+        <option value="pro">Pro</option>
+      </select>
+      <input id="historyDateFilter" type="date" class="border border-slate-300 rounded-xl px-3 py-2">
+      <button id="clearHistoryFilters" class="border border-slate-300 rounded-xl px-3 py-2">Clear Filters</button>
+    </div>
+
+    <div class="overflow-auto mt-5">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b bg-slate-50">
+            <th class="text-left p-3">Date</th>
+            <th class="text-left p-3">Mode</th>
+            <th class="text-left p-3">Rider</th>
+            <th class="text-left p-3">Weight</th>
+            <th class="text-left p-3">Slope</th>
+            <th class="text-left p-3">Distance</th>
+            <th class="text-left p-3">Avg speed</th>
+            <th class="text-left p-3">Max speed</th>
+            <th class="text-left p-3">Energy</th>
+            <th class="text-left p-3">Efficiency</th>
+            <th class="text-left p-3">Action</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+
+    <p id="historyEmpty" class="hidden text-center text-slate-500 py-10">No rides found.</p>
+  </div>
+</section>
+
+<!-- =========================================================
+     BOARD
+========================================================= -->
+<section id="board" class="page">
+
+  <div class="grid md:grid-cols-4 gap-3 mb-4">
+    <div class="card p-5"><span class="small-label">BLE device</span><b id="boardDevice" class="block text-lg mt-1">Disconnected</b></div>
+    <div class="card p-5"><span class="small-label">Actual VESC duty</span><b id="boardDuty" class="block text-lg mt-1">—</b></div>
+    <div class="card p-5"><span class="small-label">VESC fault</span><b id="boardFault" class="block text-lg mt-1">—</b></div>
+    <div class="card p-5"><span class="small-label">Command speed</span><b id="commandSpeed" class="block text-lg mt-1">—</b></div>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-4">
+    <div class="card p-5">
+      <h3 class="font-bold">Controller Values</h3>
+      <div class="mt-4 divide-y text-sm">
+        <div class="flex justify-between py-2"><span>RPM</span><b id="bRPM">—</b></div>
+        <div class="flex justify-between py-2"><span>Motor current</span><b id="bMotorCurrent">—</b></div>
+        <div class="flex justify-between py-2"><span>Battery current</span><b id="bBatteryCurrent">—</b></div>
+        <div class="flex justify-between py-2"><span>Voltage</span><b id="bVoltage">—</b></div>
+        <div class="flex justify-between py-2"><span>Motor temperature</span><b id="bMotorTemp">—</b></div>
+        <div class="flex justify-between py-2"><span>MOSFET temperature</span><b id="bMosfetTemp">—</b></div>
+        <div class="flex justify-between py-2"><span>Duty cycle</span><b id="bDuty">—</b></div>
+        <div class="flex justify-between py-2"><span>Amp-hours</span><b id="bAh">—</b></div>
+        <div class="flex justify-between py-2"><span>Watt-hours</span><b id="bWh">—</b></div>
+        <div class="flex justify-between py-2"><span>Derived power</span><b id="bPower">—</b></div>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="font-bold">Communication</h3>
+      <div class="mt-4 divide-y text-sm">
+        <div class="flex justify-between py-2"><span>Device name</span><b>SKATEBOARD-RECEIVER</b></div>
+        <div class="flex justify-between py-2"><span>Service UUID</span><b class="text-xs">7b5e0001…9001</b></div>
+        <div class="flex justify-between py-2"><span>Telemetry UUID</span><b class="text-xs">7b5e0002…9002</b></div>
+        <div class="flex justify-between py-2"><span>Notification state</span><b id="notificationState">—</b></div>
+        <div class="flex justify-between py-2"><span>Packets received</span><b id="boardPackets">0</b></div>
+        <div class="flex justify-between py-2"><span>Last packet</span><b id="boardLastPacket">—</b></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-5 mt-4">
+    <div class="flex justify-between items-center">
+      <h3 class="font-bold">Raw JSON Telemetry</h3>
+      <button id="copyRaw" class="border rounded-xl px-3 py-2 text-sm">Copy</button>
+    </div>
+    <pre id="boardRaw" class="bg-slate-950 text-slate-100 rounded-xl p-4 mt-3 text-xs overflow-auto">Waiting…</pre>
+  </div>
+</section>
+
+<!-- =========================================================
+     SETTINGS
+========================================================= -->
+<section id="settings" class="page">
+
+  <div class="grid lg:grid-cols-2 gap-4">
+
+    <div class="card p-5">
+      <h2 class="font-bold text-lg">BLE Configuration</h2>
+      <div class="mt-4 space-y-3 text-sm">
+        <div><span class="small-label block">Device name</span><b>SKATEBOARD-RECEIVER</b></div>
+        <div><span class="small-label block">Service UUID</span><code>7b5e0001-6b7a-4f7d-9a11-123456789001</code></div>
+        <div><span class="small-label block">Telemetry characteristic</span><code>7b5e0002-6b7a-4f7d-9a11-123456789002</code></div>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <h2 class="font-bold text-lg">Battery Specification</h2>
+      <div class="mt-4 space-y-2 text-sm">
         <div class="flex justify-between"><span>Nominal voltage</span><b>33.3 V</b></div>
         <div class="flex justify-between"><span>Capacity</span><b>2.2 Ah</b></div>
         <div class="flex justify-between"><span>Nominal energy</span><b>≈73.3 Wh</b></div>
-        <div class="h-3 bg-slate-100 rounded-full overflow-hidden"><div id="batteryBar" class="h-full bg-slate-900" style="width:0%"></div></div>
-        <div class="flex justify-between text-sm"><span id="batteryPct">—</span><span id="voltage">—</span></div>
       </div>
     </div>
 
-    <div class="card p-6">
-      <h2 class="font-bold text-lg">Live Telemetry</h2>
-      <div class="grid grid-cols-2 gap-3 mt-4">
-        <div class="bg-slate-50 rounded-xl p-3"><small>RPM</small><b id="rpm" class="block text-xl">—</b></div>
-        <div class="bg-slate-50 rounded-xl p-3"><small>Motor Current</small><b id="motorCurrent" class="block text-xl">—</b></div>
-        <div class="bg-slate-50 rounded-xl p-3"><small>Motor Temp</small><b id="motorTemp" class="block text-xl">—</b></div>
-        <div class="bg-slate-50 rounded-xl p-3"><small>MOSFET Temp</small><b id="mosfetTemp" class="block text-xl">—</b></div>
-        <div class="bg-slate-50 rounded-xl p-3"><small>Battery Current</small><b id="batteryCurrent" class="block text-xl">—</b></div>
-        <div class="bg-slate-50 rounded-xl p-3"><small>Power</small><b id="power" class="block text-xl">—</b></div>
+    <div class="card p-5">
+      <h2 class="font-bold text-lg">Data Handling</h2>
+      <div class="mt-4 space-y-3 text-sm text-slate-600">
+        <p>Live telemetry is accepted only from the configured BLE characteristic.</p>
+        <p>Ride logging requires a connected receiver and recent telemetry.</p>
+        <p>Power is treated as a derived value when it is calculated as voltage × battery current.</p>
+        <p>Vehicle speed is displayed from the Receiver's validated <code>speed_kmh</code> field. RPM is not silently converted into km/h.</p>
       </div>
     </div>
-  </div>
 
-  <div class="card p-6 mt-4">
-    <h2 class="font-bold text-lg">Ride Information</h2>
-    <div class="grid md:grid-cols-4 gap-3 mt-4">
-      <input id="riderName" class="border rounded-xl px-3 py-2" placeholder="Rider name">
-      <input id="riderWeight" type="number" class="border rounded-xl px-3 py-2" placeholder="Rider weight (kg)">
-      <input id="slope" type="number" step="0.1" class="border rounded-xl px-3 py-2" placeholder="Slope (°)">
-      <select id="rideMode" class="border rounded-xl px-3 py-2"><option value="beginner">Beginner</option><option value="normal" selected>Normal</option><option value="pro">Pro</option></select>
-      <input id="rideLabel" class="border rounded-xl px-3 py-2 md:col-span-3" placeholder="Ride label">
-      <button id="startBtn" class="rounded-xl bg-slate-900 text-white font-semibold px-4 py-2">Start Ride</button>
-      <button id="endBtn" disabled class="rounded-xl border border-slate-300 font-semibold px-4 py-2">End & Save Ride</button>
+    <div class="card p-5">
+      <h2 class="font-bold text-lg">Database</h2>
+      <div class="mt-4 space-y-2 text-sm">
+        <div class="flex justify-between"><span>Project</span><b>Smart Electric Skateboard</b></div>
+        <div class="flex justify-between"><span>Ride table</span><b>rides</b></div>
+        <div class="flex justify-between"><span>Telemetry table</span><b>telemetry_logs</b></div>
+        <div class="flex justify-between"><span>Connection</span><b id="settingsDB">Checking…</b></div>
+      </div>
     </div>
-    <p id="rideStatus" class="text-sm text-slate-500 mt-3">No active ride.</p>
+
   </div>
 </section>
 
-<section id="live" class="page hidden">
-  <div class="grid md:grid-cols-2 gap-4">
-    <div class="card p-5"><h2 class="font-bold mb-3">Speed</h2><canvas id="speedChart"></canvas></div>
-    <div class="card p-5"><h2 class="font-bold mb-3">Power</h2><canvas id="powerChart"></canvas></div>
-    <div class="card p-5"><h2 class="font-bold mb-3">Battery Voltage</h2><canvas id="batteryChart"></canvas></div>
-    <div class="card p-5"><h2 class="font-bold mb-3">Temperature</h2><canvas id="tempChart"></canvas></div>
-    <div class="card p-5"><h2 class="font-bold mb-3">Motor Current</h2><canvas id="currentChart"></canvas></div>
-    <div class="card p-5"><h2 class="font-bold mb-3">RPM</h2><canvas id="rpmChart"></canvas></div>
-  </div>
-</section>
-
-<section id="analytics" class="page hidden">
-  <div class="grid md:grid-cols-4 gap-4 mb-4">
-    <div class="card p-5"><small>Total distance</small><p id="aDistance" class="text-2xl font-bold">0.00 km</p></div>
-    <div class="card p-5"><small>Total rides</small><p id="aRides" class="text-2xl font-bold">0</p></div>
-    <div class="card p-5"><small>Top speed</small><p id="aTopSpeed" class="text-2xl font-bold">0.00 km/h</p></div>
-    <div class="card p-5"><small>Total energy</small><p id="aEnergy" class="text-2xl font-bold">0.00 Wh</p></div>
-  </div>
-  <div class="grid md:grid-cols-2 gap-4">
-    <div class="card p-5"><h2 class="font-bold mb-3">Ride Comparison</h2><canvas id="rideComparison"></canvas></div>
-    <div class="card p-5"><h2 class="font-bold mb-3">Efficiency Trend</h2><canvas id="efficiencyChart"></canvas></div>
-    <div class="card p-5 md:col-span-2"><h2 class="font-bold mb-3">Rider Weight Comparison</h2><canvas id="weightChart"></canvas></div>
-  </div>
-</section>
-
-<section id="history" class="page hidden">
-  <div class="card p-5 overflow-auto">
-    <div class="flex justify-between items-center mb-4"><h2 class="font-bold text-lg">Ride History</h2><button id="refreshHistory" class="border rounded-xl px-3 py-2">Refresh</button></div>
-    <table class="w-full text-sm">
-      <thead><tr class="border-b text-left"><th class="p-2">Date</th><th class="p-2">Mode</th><th class="p-2">Rider</th><th class="p-2">Distance</th><th class="p-2">Avg speed</th><th class="p-2">Max speed</th><th class="p-2">Energy</th><th class="p-2">Efficiency</th></tr></thead>
-      <tbody id="historyBody"></tbody>
-    </table>
-  </div>
-</section>
-
-<section id="board" class="page hidden">
-  <div class="grid md:grid-cols-3 gap-4">
-    <div class="card p-5"><small>Connection</small><p id="bConnection" class="text-xl font-bold">Disconnected</p></div>
-    <div class="card p-5"><small>Duty Cycle</small><p id="duty" class="text-xl font-bold">—</p></div>
-    <div class="card p-5"><small>VESC Fault</small><p id="fault" class="text-xl font-bold">—</p></div>
-  </div>
-  <div class="card p-5 mt-4">
-    <h2 class="font-bold">Controller Telemetry</h2>
-    <pre id="rawTelemetry" class="mt-3 bg-slate-950 text-slate-100 rounded-xl p-4 overflow-auto text-xs">Waiting for telemetry…</pre>
-  </div>
-</section>
 </main>
 
+<!-- =========================================================
+     RIDE DETAIL MODAL
+========================================================= -->
+<div id="rideModal" class="hidden fixed inset-0 z-50 modal-backdrop items-center justify-center p-4">
+  <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+    <div class="p-5 border-b flex justify-between items-center">
+      <div>
+        <h2 class="font-bold text-xl">Ride Details</h2>
+        <p id="modalRideDate" class="text-sm text-slate-500"></p>
+      </div>
+      <button id="closeModal" class="w-9 h-9 rounded-full bg-slate-100">×</button>
+    </div>
+    <div id="modalBody" class="p-5"></div>
+  </div>
+</div>
+
+<!-- =========================================================
+     TOAST
+========================================================= -->
+<div id="toastContainer" class="fixed right-4 bottom-4 z-[60] space-y-2"></div>
+
 <script>
+/* ============================================================
+   FINAL WEB APPLICATION
+   ============================================================ */
+
+/* ----------------------------
+   Supabase
+---------------------------- */
 const SUPABASE_URL = "https://aceyfltsotqfenzwlfnj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_NfGB92DguomBJeLSkouQBg_D5Dat3Ze";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
 
+/* ----------------------------
+   Locked BLE contract
+---------------------------- */
 const BLE_DEVICE_NAME = "SKATEBOARD-RECEIVER";
-const BLE_SERVICE_UUID = "7b5e0001-6b7a-4f7d-9a11-123456789001";
-const BLE_TELEMETRY_UUID = "7b5e0002-6b7a-4f7d-9a11-123456789002";
+const BLE_SERVICE_UUID =
+  "7b5e0001-6b7a-4f7d-9a11-123456789001";
+const BLE_TELEMETRY_UUID =
+  "7b5e0002-6b7a-4f7d-9a11-123456789002";
 
-let device=null, characteristic=null, latest=null, lastTelemetryAt=0;
-let activeRide=null, rideSamples=[], rideStartMs=0, rideDistance=0, lastSampleMs=0, lastSpeed=0;
-let ridesCache=[];
-const charts={};
+/* ----------------------------
+   Application state
+---------------------------- */
+let bleDevice = null;
+let bleCharacteristic = null;
+let bleServer = null;
 
-function setText(id,v){document.getElementById(id).textContent=v}
-function n(v,d=2){return Number.isFinite(Number(v))?Number(v).toFixed(d):"—"}
-function fmtDuration(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return h?`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
-function norm(x){
-  if(!x) return null;
-  return {
-    speed:Number(x.speed ?? x.speed_kmh ?? 0),
-    rpm:Number(x.rpm ?? 0),
-    motor_current:Number(x.motor_current ?? x.motorCurrent ?? 0),
-    battery_current:Number(x.battery_current ?? x.batteryCurrent ?? 0),
-    voltage:Number(x.voltage ?? x.battery_voltage ?? x.inpVoltage ?? 0),
-    battery_percent:Number(x.battery_percent ?? x.batteryPercent ?? 0),
-    motor_temp:Number(x.motor_temp ?? x.motorTemp ?? 0),
-    mosfet_temp:Number(x.mosfet_temp ?? x.mosfetTemp ?? 0),
-    duty_cycle:Number(x.duty_cycle ?? x.dutyCycle ?? 0),
-    power:Number(x.power ?? x.power_watts ?? 0),
-    energy:Number(x.energy ?? x.watt_hours ?? 0),
-    amp_hours:Number(x.amp_hours ?? x.ampHours ?? 0),
-    fault_code:Number(x.fault_code ?? x.faultCode ?? 0),
-    mode:String(x.mode ?? document.getElementById("rideMode").value ?? "normal"),
-    armed:Boolean(x.armed ?? false),
-    telemetry_valid:x.telemetry_valid !== false
-  };
+let latestTelemetry = null;
+let latestRawText = "";
+let lastTelemetryAt = 0;
+let telemetryPackets = 0;
+
+let activeRide = null;
+let rideSamples = [];
+let rideStartTime = 0;
+let lastRideSampleTime = 0;
+let rideDistanceKm = 0;
+
+let ridesCache = [];
+let filteredRides = [];
+
+const charts = {};
+
+/* ============================================================
+   Utility functions
+============================================================ */
+
+function $(id) {
+  return document.getElementById(id);
 }
-function updateUI(t){
-  if(!t) return;
-  setText("speed",n(t.speed)); setText("rpm",n(t.rpm,0)); setText("motorCurrent",`${n(t.motor_current)} A`);
-  setText("batteryCurrent",`${n(t.battery_current)} A`); setText("voltage",`${n(t.voltage)} V`);
-  setText("motorTemp",`${n(t.motor_temp)} °C`); setText("mosfetTemp",`${n(t.mosfet_temp)} °C`);
-  setText("power",`${n(t.power)} W`); setText("batteryPct",`${n(t.battery_percent)} %`);
-  setText("batteryState",`${n(t.battery_percent)} %`); setText("modeState",t.mode);
-  setText("duty",n(t.duty_cycle*100)+" %"); setText("fault",String(t.fault_code));
-  setText("rawTelemetry",JSON.stringify(t,null,2));
-  document.getElementById("batteryBar").style.width=Math.max(0,Math.min(100,t.battery_percent))+"%";
-  const deg=Math.max(0,Math.min(360,(t.speed/30)*360)); document.getElementById("gauge").style.setProperty("--p",deg+"deg");
-  if(activeRide){
-    const now=Date.now(), dt=(now-lastSampleMs)/1000;
-    if(dt>0 && dt<10){rideDistance += Math.max(0,t.speed)*dt/3600;}
-    lastSampleMs=now;
-    const elapsed=(now-rideStartMs)/1000;
-    setText("distance",n(rideDistance,3)+" km"); setText("duration",fmtDuration(elapsed));
-    const avg=elapsed>0?rideDistance/(elapsed/3600):0; setText("avgSpeed",n(avg)+" km/h");
-    rideSamples.push({...t,recorded_at:new Date().toISOString()});
+
+function finiteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function fmt(value, decimals = 2, suffix = "") {
+  const n = finiteNumber(value);
+  return n === null ? "—" : n.toFixed(decimals) + suffix;
+}
+
+function fmtInteger(value) {
+  const n = finiteNumber(value);
+  return n === null ? "—" : Math.round(n).toLocaleString();
+}
+
+function fmtDuration(seconds) {
+  const s = Math.max(0, Math.floor(Number(seconds) || 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return [
+    String(h).padStart(2, "0"),
+    String(m).padStart(2, "0"),
+    String(sec).padStart(2, "0")
+  ].join(":");
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function showToast(message, type = "info") {
+  const el = document.createElement("div");
+  const cls =
+    type === "success"
+      ? "bg-slate-900 text-white"
+      : type === "error"
+      ? "bg-red-600 text-white"
+      : "bg-white text-slate-900 border";
+  el.className = `toast ${cls} rounded-xl shadow-xl px-4 py-3 text-sm max-w-sm`;
+  el.textContent = message;
+  $("toastContainer").appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function setConnectionBadge(connected) {
+  const badge = $("bleBadge");
+  const dot = badge.querySelector(".status-dot");
+
+  if (connected) {
+    badge.className = "badge bg-green-50 text-green-700";
+    dot.className = "status-dot ok";
+    badge.innerHTML = '<span class="status-dot ok"></span> BLE connected';
+  } else {
+    badge.className = "badge bg-slate-100 text-slate-700";
+    dot.className = "status-dot";
+    badge.innerHTML = '<span class="status-dot"></span> BLE disconnected';
   }
 }
-function addChart(id,label){
-  charts[id]=new Chart(document.getElementById(id),{type:"line",data:{labels:[],datasets:[{label,data:[],tension:.25}]},options:{responsive:true,animation:false,plugins:{legend:{display:true}},scales:{x:{display:true},y:{beginAtZero:true}}}});
+
+function normalizeTelemetry(raw) {
+  if (!raw || typeof raw !== "object") return null;
+
+  const speed =
+    raw.speed_kmh ??
+    raw.speed ??
+    null;
+
+  const batteryPercent =
+    raw.battery_percent ??
+    raw.batteryPercent ??
+    null;
+
+  const voltage =
+    raw.battery_voltage ??
+    raw.voltage ??
+    raw.inpVoltage ??
+    null;
+
+  const power =
+    raw.power_watts ??
+    raw.power ??
+    null;
+
+  return {
+    type: raw.type ?? "telemetry",
+    speed_kmh: finiteNumber(speed),
+    command_speed_pct: finiteNumber(raw.command_speed_pct),
+    rpm: finiteNumber(raw.rpm),
+    motor_current: finiteNumber(raw.motor_current ?? raw.motorCurrent),
+    battery_current: finiteNumber(raw.battery_current ?? raw.batteryCurrent),
+    battery_voltage: finiteNumber(voltage),
+    battery_percent: finiteNumber(batteryPercent),
+    motor_temp: finiteNumber(raw.motor_temp ?? raw.motorTemp),
+    mosfet_temp: finiteNumber(raw.mosfet_temp ?? raw.mosfetTemp),
+    duty_cycle: finiteNumber(raw.duty_cycle ?? raw.dutyCycle),
+    power_watts: finiteNumber(power),
+    watt_hours: finiteNumber(raw.watt_hours ?? raw.energy ?? raw.wattHours),
+    amp_hours: finiteNumber(raw.amp_hours ?? raw.ampHours),
+    fault_code: finiteNumber(raw.fault_code ?? raw.faultCode),
+    armed: raw.armed === undefined ? null : Boolean(raw.armed),
+    mode: raw.mode ?? null,
+    telemetry_valid: raw.telemetry_valid !== false,
+    timestamp_ms: finiteNumber(raw.timestamp_ms)
+  };
 }
-function initCharts(){
-  addChart("speedChart","Speed (km/h)"); addChart("powerChart","Power (W)"); addChart("batteryChart","Voltage (V)");
-  addChart("tempChart","Temperature (°C)"); addChart("currentChart","Motor Current (A)"); addChart("rpmChart","RPM");
-  ["rideComparison","efficiencyChart","weightChart"].forEach(id=>charts[id]=new Chart(document.getElementById(id),{type:"bar",data:{labels:[],datasets:[]},options:{responsive:true,animation:false,scales:{y:{beginAtZero:true}}}}));
+
+/* ============================================================
+   Navigation
+============================================================ */
+
+document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
+    $(btn.dataset.page).classList.add("active");
+
+    if (btn.dataset.page === "analytics") {
+      updateAnalytics();
+    }
+  });
+});
+
+/* ============================================================
+   BLE
+============================================================ */
+
+async function connectBLE() {
+  if (!navigator.bluetooth) {
+    showToast("Web Bluetooth is not available in this browser.", "error");
+    return;
+  }
+
+  try {
+    $("connectBtn").disabled = true;
+    $("connectBtn").textContent = "Connecting…";
+
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [
+        { name: BLE_DEVICE_NAME }
+      ],
+      optionalServices: [BLE_SERVICE_UUID]
+    });
+
+    bleDevice.addEventListener(
+      "gattserverdisconnected",
+      handleBLEDisconnected
+    );
+
+    bleServer = await bleDevice.gatt.connect();
+
+    const service =
+      await bleServer.getPrimaryService(BLE_SERVICE_UUID);
+
+    bleCharacteristic =
+      await service.getCharacteristic(BLE_TELEMETRY_UUID);
+
+    await bleCharacteristic.startNotifications();
+
+    bleCharacteristic.addEventListener(
+      "characteristicvaluechanged",
+      handleTelemetryNotification
+    );
+
+    setConnectionBadge(true);
+
+    $("disconnectBtn").classList.remove("hidden");
+    $("connectBtn").disabled = false;
+    $("connectBtn").innerHTML =
+      '<i class="fa-brands fa-bluetooth-b mr-1"></i> Connected';
+
+    $("receiverState").textContent = "Connected";
+    $("receiverDot").className = "status-dot ok";
+    $("statusBLE").textContent = "Connected";
+    $("boardDevice").textContent =
+      bleDevice.name || BLE_DEVICE_NAME;
+    $("notificationState").textContent = "Enabled";
+
+    showToast("Receiver connected successfully.", "success");
+
+  } catch (error) {
+    console.error("BLE connection error:", error);
+
+    $("connectBtn").disabled = false;
+    $("connectBtn").innerHTML =
+      '<i class="fa-brands fa-bluetooth-b mr-1"></i> Connect Skateboard';
+
+    if (error.name !== "NotFoundError") {
+      showToast("BLE connection failed: " + error.message, "error");
+    }
+  }
 }
-function pushChart(id,value){
-  const c=charts[id]; if(!c)return;
-  const label=activeRide?fmtDuration((Date.now()-rideStartMs)/1000):new Date().toLocaleTimeString();
-  c.data.labels.push(label); c.data.datasets[0].data.push(value);
-  if(c.data.labels.length>120){c.data.labels.shift();c.data.datasets[0].data.shift()}
-  c.update("none");
+
+async function disconnectBLE() {
+  try {
+    if (bleDevice && bleDevice.gatt.connected) {
+      bleDevice.gatt.disconnect();
+    }
+  } catch (e) {
+    console.error(e);
+  }
+
+  handleBLEDisconnected();
 }
-function onTelemetry(event){
-  try{
-    const text=new TextDecoder().decode(event.target.value);
-    const t=norm(JSON.parse(text)); if(!t)return;
-    latest=t; lastTelemetryAt=Date.now(); updateUI(t);
-    pushChart("speedChart",t.speed); pushChart("powerChart",t.power); pushChart("batteryChart",t.voltage);
-    pushChart("tempChart",Math.max(t.motor_temp,t.mosfet_temp)); pushChart("currentChart",t.motor_current); pushChart("rpmChart",t.rpm);
-    setText("systemState",t.telemetry_valid?"Telemetry OK":"Telemetry invalid");
-  }catch(e){console.error("Telemetry parse error",e)}
+
+function handleBLEDisconnected() {
+  bleCharacteristic = null;
+  bleServer = null;
+
+  setConnectionBadge(false);
+
+  $("disconnectBtn").classList.add("hidden");
+  $("connectBtn").disabled = false;
+  $("connectBtn").innerHTML =
+    '<i class="fa-brands fa-bluetooth-b mr-1"></i> Connect Skateboard';
+
+  $("receiverState").textContent = "Disconnected";
+  $("receiverDot").className = "status-dot";
+  $("statusBLE").textContent = "Disconnected";
+  $("boardDevice").textContent = "Disconnected";
+  $("notificationState").textContent = "—";
+
+  if (!activeRide) {
+    $("rideStatus").textContent = "No active ride.";
+  } else {
+    $("rideStatus").textContent =
+      "BLE disconnected. Ride recording is paused until telemetry resumes.";
+  }
 }
-async function connectBLE(){
-  if(!navigator.bluetooth){alert("Web Bluetooth is not available in this browser/device.");return}
-  try{
-    device=await navigator.bluetooth.requestDevice({filters:[{name:BLE_DEVICE_NAME}],optionalServices:[BLE_SERVICE_UUID]});
-    device.addEventListener("gattserverdisconnected",()=>{characteristic=null;setText("bleBadge","BLE: disconnected");setText("boardState","Disconnected");setText("bConnection","Disconnected")});
-    const server=await device.gatt.connect();
-    const service=await server.getPrimaryService(BLE_SERVICE_UUID);
-    characteristic=await service.getCharacteristic(BLE_TELEMETRY_UUID);
-    await characteristic.startNotifications();
-    characteristic.addEventListener("characteristicvaluechanged",onTelemetry);
-    setText("bleBadge","BLE: connected"); setText("boardState","Connected"); setText("bConnection",device.name||BLE_DEVICE_NAME);
-    setText("systemState","Telemetry streaming");
-  }catch(e){console.error(e);alert("BLE connection failed: "+e.message)}
+
+/* ============================================================
+   Telemetry receive
+============================================================ */
+
+function handleTelemetryNotification(event) {
+  try {
+    const decoder = new TextDecoder("utf-8");
+    const text = decoder.decode(event.target.value);
+
+    latestRawText = text;
+
+    const raw = JSON.parse(text);
+    const telemetry = normalizeTelemetry(raw);
+
+    if (!telemetry) return;
+
+    latestTelemetry = telemetry;
+    lastTelemetryAt = Date.now();
+    telemetryPackets++;
+
+    updateTelemetryUI(telemetry);
+    updateLiveCharts(telemetry);
+
+    if (activeRide) {
+      processRideSample(telemetry);
+    }
+
+  } catch (error) {
+    console.error("Telemetry parsing error:", error);
+    $("dashboardTelemetry").textContent = "Parse error";
+  }
 }
-function clearCharts(){Object.values(charts).forEach(c=>{if(c?.data?.datasets?.[0]){c.data.labels=[];c.data.datasets[0].data=[];c.update("none")}})}
-async function startRide(){
-  if(!device || !characteristic || Date.now()-lastTelemetryAt>3000){alert("Connect the Receiver ESP32 and wait for live telemetry first.");return}
-  activeRide={rider_name:document.getElementById("riderName").value.trim()||null,rider_weight_kg:Number(document.getElementById("riderWeight").value)||null,slope_deg:Number(document.getElementById("slope").value)||0,ride_mode:document.getElementById("rideMode").value,ride_label:document.getElementById("rideLabel").value.trim()||null,start_battery_pct:latest.battery_percent};
-  rideSamples=[]; rideDistance=0; rideStartMs=Date.now(); lastSampleMs=rideStartMs; clearCharts();
-  document.getElementById("startBtn").disabled=true;document.getElementById("endBtn").disabled=false;
-  setText("rideStatus","Ride recording active.");
+
+/* ============================================================
+   Telemetry UI
+============================================================ */
+
+function updateTelemetryUI(t) {
+
+  $("rawTelemetry").textContent = latestRawText;
+  $("boardRaw").textContent = latestRawText;
+
+  $("sampleCount").textContent = telemetryPackets;
+  $("boardPackets").textContent = telemetryPackets;
+  $("lastUpdate").textContent = new Date().toLocaleTimeString();
+  $("boardLastPacket").textContent = new Date().toLocaleTimeString();
+
+  $("dashboardTelemetry").textContent =
+    t.telemetry_valid ? "Telemetry OK" : "Invalid";
+
+  $("statusVesc").textContent =
+    t.telemetry_valid ? "Available" : "Invalid";
+
+  if (t.speed_kmh !== null) {
+    $("speedValue").textContent = t.speed_kmh.toFixed(2);
+
+    const maxGaugeSpeed = 30;
+    const angle = Math.max(
+      0,
+      Math.min(360, (Math.abs(t.speed_kmh) / maxGaugeSpeed) * 360)
+    );
+
+    $("speedGauge").style.setProperty(
+      "--angle",
+      angle + "deg"
+    );
+
+    $("speedQualityBadge").textContent = "Receiver value";
+    $("speedQualityBadge").className =
+      "badge bg-green-50 text-green-700";
+  } else {
+    $("speedValue").textContent = "—";
+    $("speedQualityBadge").textContent = "No speed field";
+    $("speedQualityBadge").className =
+      "badge bg-slate-100 text-slate-600";
+  }
+
+  $("rpm").textContent = fmtInteger(t.rpm);
+  $("motorCurrent").textContent = fmt(t.motor_current) + " A";
+  $("batteryCurrent").textContent = fmt(t.battery_current) + " A";
+  $("batteryVoltage").textContent = fmt(t.battery_voltage) + " V";
+  $("motorTemp").textContent = fmt(t.motor_temp, 1) + " °C";
+  $("mosfetTemp").textContent = fmt(t.mosfet_temp, 1) + " °C";
+  $("power").textContent = fmt(t.power_watts, 1) + " W";
+  $("dutyCycle").textContent =
+    t.duty_cycle === null ? "—" :
+    fmt(t.duty_cycle * 100, 1) + " %";
+
+  if (t.battery_percent !== null) {
+    $("batteryPercent").textContent =
+      fmt(t.battery_percent, 1) + " %";
+    $("batteryPercentLabel").textContent =
+      fmt(t.battery_percent, 1) + " %";
+    $("dashboardBattery").textContent =
+      fmt(t.battery_percent, 1) + " %";
+
+    const pct = Math.max(0, Math.min(100, t.battery_percent));
+    $("batteryProgress").style.width = pct + "%";
+  } else {
+    $("batteryPercent").textContent = "—";
+    $("batteryPercentLabel").textContent = "Not supplied";
+    $("dashboardBattery").textContent = "—";
+    $("batteryProgress").style.width = "0%";
+  }
+
+  $("dashboardMode").textContent =
+    t.mode || $("rideMode").value || "Normal";
+
+  $("boardDuty").textContent =
+    t.duty_cycle === null
+      ? "—"
+      : fmt(t.duty_cycle * 100, 1) + " %";
+
+  $("boardFault").textContent =
+    t.fault_code === null ? "—" : String(t.fault_code);
+
+  $("dashboardFault").textContent =
+    t.fault_code === null ? "—" : String(t.fault_code);
+
+  $("commandSpeed").textContent =
+    t.command_speed_pct === null
+      ? "—"
+      : fmt(t.command_speed_pct, 0) + " %";
+
+  $("bRPM").textContent = fmtInteger(t.rpm);
+  $("bMotorCurrent").textContent = fmt(t.motor_current) + " A";
+  $("bBatteryCurrent").textContent = fmt(t.battery_current) + " A";
+  $("bVoltage").textContent = fmt(t.battery_voltage) + " V";
+  $("bMotorTemp").textContent = fmt(t.motor_temp, 1) + " °C";
+  $("bMosfetTemp").textContent = fmt(t.mosfet_temp, 1) + " °C";
+  $("bDuty").textContent =
+    t.duty_cycle === null ? "—" : fmt(t.duty_cycle * 100, 1) + " %";
+  $("bAh").textContent = fmt(t.amp_hours, 3) + " Ah";
+  $("bWh").textContent = fmt(t.watt_hours, 2) + " Wh";
+  $("bPower").textContent = fmt(t.power_watts, 1) + " W";
+
+  updateThermalStatus(t);
 }
-async function endRide(){
-  if(!activeRide)return;
-  const now=Date.now(), duration=Math.round((now-rideStartMs)/1000), avg=duration>0?rideDistance/(duration/3600):0;
-  const maxSpeed=Math.max(0,...rideSamples.map(x=>x.speed)), energyStart=rideSamples[0]?.energy??latest?.energy??0, energyEnd=latest?.energy??energyStart;
-  const energy=Math.max(0,energyEnd-energyStart), efficiency=rideDistance>0?energy/rideDistance:0;
-  const maxMotor=Math.max(0,...rideSamples.map(x=>x.motor_temp)), maxMosfet=Math.max(0,...rideSamples.map(x=>x.mosfet_temp));
-  const payload={developer_id:"web_app",duration_seconds:duration,distance_km:rideDistance,avg_speed_kmh:avg,max_speed_kmh:maxSpeed,energy_used_wh:energy,efficiency_wh_km:efficiency,start_battery_pct:activeRide.start_battery_pct,end_battery_pct:latest?.battery_percent??null,max_motor_temp:maxMotor,max_mosfet_temp:maxMosfet,ride_label:activeRide.ride_label,rider_name:activeRide.rider_name,rider_weight_kg:activeRide.rider_weight_kg,ride_mode:activeRide.ride_mode,slope_deg:activeRide.slope_deg};
-  try{
-    const {data,error}=await supabase.from("rides").insert(payload).select("id").single(); if(error)throw error;
-    const rideId=data.id;
-    const logs=rideSamples.map(x=>({ride_id:rideId,recorded_at:x.recorded_at,speed_kmh:x.speed,rpm:x.rpm,motor_current:x.motor_current,battery_current:x.battery_current,battery_voltage:x.voltage,battery_percent:x.battery_percent,motor_temp:x.motor_temp,mosfet_temp:x.mosfet_temp,duty_cycle:x.duty_cycle,power_watts:x.power}));
-    for(let i=0;i<logs.length;i+=250){const {error:e}=await supabase.from("telemetry_logs").insert(logs.slice(i,i+250));if(e)throw e}
-    alert("Ride saved successfully.");
-    activeRide=null;rideSamples=[];document.getElementById("startBtn").disabled=false;document.getElementById("endBtn").disabled=true;setText("rideStatus","Ride saved.");await loadRides();await loadAnalytics();
-  }catch(e){console.error(e);alert("Could not save ride: "+e.message)}
+
+function updateThermalStatus(t) {
+  $("thermalMotor").textContent =
+    t.motor_temp === null ? "—" : fmt(t.motor_temp, 1) + " °C";
+
+  $("thermalMosfet").textContent =
+    t.mosfet_temp === null ? "—" : fmt(t.mosfet_temp, 1) + " °C";
+
+  let status = "Normal";
+
+  if (
+    (t.motor_temp !== null && t.motor_temp >= 80) ||
+    (t.mosfet_temp !== null && t.mosfet_temp >= 75)
+  ) {
+    status = "High";
+  } else if (
+    (t.motor_temp !== null && t.motor_temp >= 70) ||
+    (t.mosfet_temp !== null && t.mosfet_temp >= 65)
+  ) {
+    status = "Monitor";
+  }
+
+  $("thermalOverall").textContent = status;
 }
-async function loadRides(){
-  const {data,error}=await supabase.from("rides").select("*").order("created_at",{ascending:false}).limit(500);
-  if(error){console.error(error);return} ridesCache=data||[]; renderHistory();
+
+/* ============================================================
+   Live charts
+============================================================ */
+
+function makeLineChart(id, label) {
+  return new Chart($(id), {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: [{
+        label: label,
+        data: [],
+        tension: 0.2,
+        pointRadius: 0,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      interaction: {
+        intersect: false,
+        mode: "index"
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: "Time"
+          }
+        },
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
 }
-function renderHistory(){
-  const body=document.getElementById("historyBody");body.innerHTML="";
-  ridesCache.forEach(r=>{const tr=document.createElement("tr");tr.className="border-b";
-    tr.innerHTML=`<td class="p-2">${new Date(r.created_at).toLocaleString()}</td><td class="p-2">${r.ride_mode??"—"}</td><td class="p-2">${r.rider_name??"—"}</td><td class="p-2">${n(r.distance_km,3)} km</td><td class="p-2">${n(r.avg_speed_kmh)} km/h</td><td class="p-2">${n(r.max_speed_kmh)} km/h</td><td class="p-2">${n(r.energy_used_wh)} Wh</td><td class="p-2">${n(r.efficiency_wh_km)} Wh/km</td>`;body.appendChild(tr)
-  })
+
+function initializeLiveCharts() {
+  charts.speed = makeLineChart("speedChart", "Speed (km/h)");
+  charts.power = makeLineChart("powerChart", "Power (W)");
+  charts.voltage = makeLineChart("voltageChart", "Voltage (V)");
+  charts.temperature = makeLineChart("temperatureChart", "Temperature (°C)");
+  charts.current = makeLineChart("currentChart", "Motor Current (A)");
+  charts.rpm = makeLineChart("rpmChart", "RPM");
+  charts.duty = makeLineChart("dutyChart", "Duty Cycle (%)");
 }
-async function loadAnalytics(){
-  if(!ridesCache.length)await loadRides();
-  const totalD=ridesCache.reduce((s,r)=>s+Number(r.distance_km||0),0),totalE=ridesCache.reduce((s,r)=>s+Number(r.energy_used_wh||0),0);
-  setText("aDistance",n(totalD,2)+" km");setText("aRides",ridesCache.length);setText("aTopSpeed",n(Math.max(0,...ridesCache.map(r=>Number(r.max_speed_kmh||0))))+" km/h");setText("aEnergy",n(totalE,2)+" Wh");
-  const labels=ridesCache.slice().reverse().map((_,i)=>"R"+(i+1));
-  const modes=["beginner","normal","pro"],modeDist=modes.map(m=>ridesCache.filter(r=>r.ride_mode===m).reduce((s,r)=>s+Number(r.distance_km||0),0));
-  charts.rideComparison.data={labels:modes,datasets:[{label:"Distance (km)",data:modeDist}]};charts.rideComparison.update();
-  const trend=ridesCache.slice().reverse();charts.efficiencyChart.data={labels,datasets:[{label:"Efficiency (Wh/km)",data:trend.map(r=>Number(r.efficiency_wh_km||0))}]};charts.efficiencyChart.update();
-  const weights=[...new Set(ridesCache.map(r=>Number(r.rider_weight_kg)).filter(Number.isFinite))].sort((a,b)=>a-b);
-  charts.weightChart.data={labels:weights.map(w=>w+" kg"),datasets:[{label:"Mean efficiency (Wh/km)",data:weights.map(w=>{const a=ridesCache.filter(r=>Number(r.rider_weight_kg)===w);return a.length?a.reduce((s,r)=>s+Number(r.efficiency_wh_km||0),0)/a.length:0})}]};charts.weightChart.update();
+
+function pushChart(chart, value) {
+  if (!chart || value === null || !Number.isFinite(Number(value))) return;
+
+  const label = activeRide
+    ? fmtDuration((Date.now() - rideStartTime) / 1000)
+    : new Date().toLocaleTimeString();
+
+  chart.data.labels.push(label);
+  chart.data.datasets[0].data.push(Number(value));
+
+  const maxPoints = 240;
+
+  if (chart.data.labels.length > maxPoints) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+  }
+
+  chart.update("none");
 }
-async function checkDB(){const {error}=await supabase.from("rides").select("id",{head:true,count:"exact"});setText("dbBadge",error?"Supabase: error":"Supabase: connected")}
-document.querySelectorAll(".navbtn").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".navbtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));document.getElementById(b.dataset.page).classList.remove("hidden")}));
-document.getElementById("connectBtn").addEventListener("click",connectBLE);
-document.getElementById("startBtn").addEventListener("click",startRide);
-document.getElementById("endBtn").addEventListener("click",endRide);
-document.getElementById("refreshHistory").addEventListener("click",loadRides);
-window.addEventListener("beforeunload",e=>{if(activeRide){e.preventDefault();e.returnValue=""}});
-initCharts();checkDB();loadRides().then(loadAnalytics);
-setInterval(()=>{if(activeRide && Date.now()-lastTelemetryAt>3000){setText("rideStatus","Telemetry stale — ride recording paused until telemetry resumes.");}},1000);
+
+function updateLiveCharts(t) {
+  pushChart(charts.speed, t.speed_kmh);
+  pushChart(charts.power, t.power_watts);
+  pushChart(charts.voltage, t.battery_voltage);
+  pushChart(
+    charts.temperature,
+    t.motor_temp !== null && t.mosfet_temp !== null
+      ? Math.max(t.motor_temp, t.mosfet_temp)
+      : t.motor_temp ?? t.mosfet_temp
+  );
+  pushChart(charts.current, t.motor_current);
+  pushChart(charts.rpm, t.rpm);
+
+  if (t.duty_cycle !== null) {
+    pushChart(charts.duty, t.duty_cycle * 100);
+  }
+}
+
+function clearLiveCharts() {
+  Object.values(charts).forEach(chart => {
+    if (!chart || !chart.data) return;
+
+    chart.data.labels = [];
+    chart.data.datasets.forEach(ds => {
+      ds.data = [];
+    });
+
+    chart.update("none");
+  });
+}
+
+/* ============================================================
+   Ride recording
+============================================================ */
+
+function canStartRide() {
+  if (!bleCharacteristic) {
+    return false;
+  }
+
+  if (!latestTelemetry) {
+    return false;
+  }
+
+  if (Date.now() - lastTelemetryAt > 3000) {
+    return false;
+  }
+
+  if (!latestTelemetry.telemetry_valid) {
+    return false;
+  }
+
+  return true;
+}
+
+function startRide() {
+  if (!canStartRide()) {
+    showToast(
+      "Connect the Receiver and wait for valid telemetry before starting a ride.",
+      "error"
+    );
+    return;
+  }
+
+  if (activeRide) return;
+
+  activeRide = {
+    rider_name: $("riderName").value.trim() || null,
+    rider_weight_kg:
+      finiteNumber($("riderWeight").value),
+    slope_deg:
+      finiteNumber($("rideSlope").value) ?? 0,
+    ride_mode:
+      $("rideMode").value,
+    ride_label:
+      $("rideLabel").value.trim() || null,
+    start_battery_pct:
+      latestTelemetry.battery_percent,
+    start_voltage:
+      latestTelemetry.battery_voltage,
+    start_watt_hours:
+      latestTelemetry.watt_hours
+  };
+
+  rideSamples = [];
+  rideStartTime = Date.now();
+  lastRideSampleTime = rideStartTime;
+  rideDistanceKm = 0;
+
+  $("startRideBtn").disabled = true;
+  $("endRideBtn").disabled = false;
+
+  $("rideStartBattery").textContent =
+    latestTelemetry.battery_percent === null
+      ? "Not supplied"
+      : fmt(latestTelemetry.battery_percent, 1) + " %";
+
+  $("recordingBadge").className =
+    "badge bg-green-50 text-green-700";
+  $("recordingBadge").innerHTML =
+    '<span class="status-dot ok"></span> Recording';
+
+  $("rideStatus").textContent =
+    "Ride recording active.";
+
+  showToast("Ride recording started.", "success");
+}
+
+function processRideSample(t) {
+  const now = Date.now();
+
+  const dt = (now - lastRideSampleTime) / 1000;
+
+  if (dt > 0 && dt <= 3 && t.speed_kmh !== null) {
+    rideDistanceKm +=
+      Math.max(0, t.speed_kmh) * dt / 3600;
+  }
+
+  lastRideSampleTime = now;
+
+  rideSamples.push({
+    ...t,
+    recorded_at: new Date().toISOString()
+  });
+
+  const elapsed =
+    (now - rideStartTime) / 1000;
+
+  $("rideDistance").textContent =
+    rideDistanceKm.toFixed(3) + " km";
+
+  $("rideDuration").textContent =
+    fmtDuration(elapsed);
+
+  $("dashboardDistance").textContent =
+    rideDistanceKm.toFixed(3) + " km";
+
+  $("dashboardDuration").textContent =
+    fmtDuration(elapsed);
+
+  const avgSpeed =
+    elapsed > 0
+      ? rideDistanceKm / (elapsed / 3600)
+      : 0;
+
+  $("dashboardAvgSpeed").textContent =
+    avgSpeed.toFixed(2) + " km/h";
+
+  $("distance").textContent =
+    rideDistanceKm.toFixed(3) + " km";
+}
+
+async function endRide() {
+  if (!activeRide) return;
+
+  const endTime = Date.now();
+
+  const durationSeconds = Math.max(
+    0,
+    Math.round((endTime - rideStartTime) / 1000)
+  );
+
+  const validSpeeds = rideSamples
+    .map(s => s.speed_kmh)
+    .filter(v => v !== null && Number.isFinite(v));
+
+  const maxSpeed =
+    validSpeeds.length
+      ? Math.max(...validSpeeds)
+      : 0;
+
+  const avgSpeed =
+    durationSeconds > 0
+      ? rideDistanceKm / (durationSeconds / 3600)
+      : 0;
+
+  let energyUsed = 0;
+
+  if (
+    activeRide.start_watt_hours !== null &&
+    latestTelemetry &&
+    latestTelemetry.watt_hours !== null
+  ) {
+    energyUsed = Math.max(
+      0,
+      latestTelemetry.watt_hours -
+      activeRide.start_watt_hours
+    );
+  } else if (rideDistanceKm > 0) {
+    /*
+      Do not invent energy.
+      If VESC watt-hours are unavailable, energy remains zero
+      and efficiency remains zero rather than being fabricated.
+    */
+    energyUsed = 0;
+  }
+
+  const efficiency =
+    energyUsed > 0 && rideDistanceKm > 0
+      ? energyUsed / rideDistanceKm
+      : 0;
+
+  const motorTemps = rideSamples
+    .map(s => s.motor_temp)
+    .filter(v => v !== null);
+
+  const mosfetTemps = rideSamples
+    .map(s => s.mosfet_temp)
+    .filter(v => v !== null);
+
+  const maxMotorTemp =
+    motorTemps.length ? Math.max(...motorTemps) : 0;
+
+  const maxMosfetTemp =
+    mosfetTemps.length ? Math.max(...mosfetTemps) : 0;
+
+  const ridePayload = {
+    developer_id: "web_app",
+    duration_seconds: durationSeconds,
+    distance_km: rideDistanceKm,
+    avg_speed_kmh: avgSpeed,
+    max_speed_kmh: maxSpeed,
+    energy_used_wh: energyUsed,
+    efficiency_wh_km: efficiency,
+    start_battery_pct:
+      activeRide.start_battery_pct,
+    end_battery_pct:
+      latestTelemetry?.battery_percent ?? null,
+    max_motor_temp: maxMotorTemp,
+    max_mosfet_temp: maxMosfetTemp,
+    ride_label: activeRide.ride_label,
+    rider_name: activeRide.rider_name,
+    rider_weight_kg: activeRide.rider_weight_kg,
+    ride_mode: activeRide.ride_mode,
+    slope_deg: activeRide.slope_deg
+  };
+
+  try {
+    $("endRideBtn").disabled = true;
+    $("rideStatus").textContent =
+      "Saving ride summary…";
+
+    const {
+      data: rideRow,
+      error: rideError
+    } = await supabaseClient
+      .from("rides")
+      .insert(ridePayload)
+      .select("id")
+      .single();
+
+    if (rideError) throw rideError;
+
+    const rideId = rideRow.id;
+
+    const logs = rideSamples.map(s => ({
+      ride_id: rideId,
+      recorded_at: s.recorded_at,
+      speed_kmh: s.speed_kmh,
+      rpm: s.rpm,
+      motor_current: s.motor_current,
+      battery_current: s.battery_current,
+      battery_voltage: s.battery_voltage,
+      battery_percent: s.battery_percent,
+      motor_temp: s.motor_temp,
+      mosfet_temp: s.mosfet_temp,
+      duty_cycle: s.duty_cycle,
+      power_watts: s.power_watts
+    }));
+
+    /*
+      Insert telemetry in chunks to avoid oversized requests.
+    */
+    for (let i = 0; i < logs.length; i += 250) {
+      const chunk = logs.slice(i, i + 250);
+
+      if (chunk.length === 0) continue;
+
+      const { error } =
+        await supabaseClient
+          .from("telemetry_logs")
+          .insert(chunk);
+
+      if (error) throw error;
+    }
+
+    showToast("Ride saved successfully.", "success");
+
+    activeRide = null;
+    rideSamples = [];
+
+    $("startRideBtn").disabled = false;
+    $("endRideBtn").disabled = true;
+
+    $("recordingBadge").className =
+      "badge bg-slate-100 text-slate-600";
+    $("recordingBadge").innerHTML =
+      '<span class="status-dot"></span> Not recording';
+
+    $("rideStatus").textContent =
+      "Ride saved successfully.";
+
+    await loadRides();
+    updateAnalytics();
+
+  } catch (error) {
+    console.error("Ride save error:", error);
+
+    $("endRideBtn").disabled = false;
+
+    $("rideStatus").textContent =
+      "Ride save failed.";
+
+    showToast(
+      "Could not save ride: " + error.message,
+      "error"
+    );
+  }
+}
+
+/* ============================================================
+   Supabase
+============================================================ */
+
+async function checkSupabase() {
+  try {
+    const { error } =
+      await supabaseClient
+        .from("rides")
+        .select("id", { head: true, count: "exact" });
+
+    if (error) throw error;
+
+    $("supabaseBadge").className =
+      "badge bg-green-50 text-green-700";
+    $("supabaseBadge").innerHTML =
+      '<span class="status-dot ok"></span> Supabase connected';
+
+    $("settingsDB").textContent = "Connected";
+
+  } catch (error) {
+    console.error("Supabase:", error);
+
+    $("supabaseBadge").className =
+      "badge bg-red-50 text-red-700";
+    $("supabaseBadge").innerHTML =
+      '<span class="status-dot bad"></span> Supabase error';
+
+    $("settingsDB").textContent = "Error";
+  }
+}
+
+async function loadRides() {
+  const { data, error } =
+    await supabaseClient
+      .from("rides")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+  if (error) {
+    console.error("Load rides:", error);
+    showToast("Could not load ride history.", "error");
+    return;
+  }
+
+  ridesCache = data || [];
+  applyHistoryFilters();
+}
+
+/* ============================================================
+   History
+============================================================ */
+
+function applyHistoryFilters() {
+  const search =
+    $("historySearch").value.trim().toLowerCase();
+
+  const mode =
+    $("historyModeFilter").value;
+
+  const date =
+    $("historyDateFilter").value;
+
+  filteredRides = ridesCache.filter(r => {
+
+    const text = [
+      r.rider_name,
+      r.ride_label,
+      r.ride_mode,
+      r.slope_deg
+    ]
+      .filter(v => v !== null && v !== undefined)
+      .join(" ")
+      .toLowerCase();
+
+    if (search && !text.includes(search)) {
+      return false;
+    }
+
+    if (mode && r.ride_mode !== mode) {
+      return false;
+    }
+
+    if (date) {
+      const rideDate =
+        new Date(r.created_at)
+          .toISOString()
+          .slice(0, 10);
+
+      if (rideDate !== date) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  renderHistory();
+}
+
+function renderHistory() {
+  const body = $("historyBody");
+
+  body.innerHTML = "";
+
+  if (!filteredRides.length) {
+    $("historyEmpty").classList.remove("hidden");
+    return;
+  }
+
+  $("historyEmpty").classList.add("hidden");
+
+  filteredRides.forEach(ride => {
+    const tr = document.createElement("tr");
+    tr.className = "border-b hover:bg-slate-50";
+
+    tr.innerHTML = `
+      <td class="p-3">${escapeHTML(
+        new Date(ride.created_at).toLocaleString()
+      )}</td>
+      <td class="p-3">${escapeHTML(ride.ride_mode ?? "—")}</td>
+      <td class="p-3">${escapeHTML(ride.rider_name ?? "—")}</td>
+      <td class="p-3">${ride.rider_weight_kg == null ? "—" : fmt(ride.rider_weight_kg,1) + " kg"}</td>
+      <td class="p-3">${ride.slope_deg == null ? "—" : fmt(ride.slope_deg,1) + "°"}</td>
+      <td class="p-3">${fmt(ride.distance_km,3)} km</td>
+      <td class="p-3">${fmt(ride.avg_speed_kmh)} km/h</td>
+      <td class="p-3">${fmt(ride.max_speed_kmh)} km/h</td>
+      <td class="p-3">${fmt(ride.energy_used_wh)} Wh</td>
+      <td class="p-3">${fmt(ride.efficiency_wh_km)} Wh/km</td>
+      <td class="p-3">
+        <button
+          class="view-ride border rounded-lg px-3 py-1"
+          data-id="${escapeHTML(ride.id)}">
+          View
+        </button>
+      </td>
+    `;
+
+    body.appendChild(tr);
+  });
+
+  document.querySelectorAll(".view-ride").forEach(btn => {
+    btn.addEventListener("click", () => {
+      openRideDetails(btn.dataset.id);
+    });
+  });
+}
+
+async function openRideDetails(rideId) {
+  const ride =
+    ridesCache.find(r => String(r.id) === String(rideId));
+
+  if (!ride) return;
+
+  $("modalRideDate").textContent =
+    new Date(ride.created_at).toLocaleString();
+
+  $("modalBody").innerHTML = `
+    <div class="grid md:grid-cols-4 gap-3">
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Mode</span><b class="block mt-1">${escapeHTML(ride.ride_mode ?? "—")}</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Rider</span><b class="block mt-1">${escapeHTML(ride.rider_name ?? "—")}</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Weight</span><b class="block mt-1">${ride.rider_weight_kg == null ? "—" : fmt(ride.rider_weight_kg,1) + " kg"}</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Slope</span><b class="block mt-1">${ride.slope_deg == null ? "—" : fmt(ride.slope_deg,1) + "°"}</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Distance</span><b class="block mt-1">${fmt(ride.distance_km,3)} km</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Duration</span><b class="block mt-1">${fmtDuration(ride.duration_seconds)}</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Average speed</span><b class="block mt-1">${fmt(ride.avg_speed_kmh)} km/h</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Maximum speed</span><b class="block mt-1">${fmt(ride.max_speed_kmh)} km/h</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Energy used</span><b class="block mt-1">${fmt(ride.energy_used_wh)} Wh</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Efficiency</span><b class="block mt-1">${fmt(ride.efficiency_wh_km)} Wh/km</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Start battery</span><b class="block mt-1">${ride.start_battery_pct == null ? "—" : fmt(ride.start_battery_pct,1) + " %"}</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">End battery</span><b class="block mt-1">${ride.end_battery_pct == null ? "—" : fmt(ride.end_battery_pct,1) + " %"}</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Max motor temp</span><b class="block mt-1">${fmt(ride.max_motor_temp,1)} °C</b></div>
+      <div class="bg-slate-50 rounded-xl p-4"><span class="small-label">Max MOSFET temp</span><b class="block mt-1">${fmt(ride.max_mosfet_temp,1)} °C</b></div>
+      <div class="bg-slate-50 rounded-xl p-4 md:col-span-2"><span class="small-label">Ride label</span><b class="block mt-1">${escapeHTML(ride.ride_label ?? "—")}</b></div>
+    </div>
+    <div class="mt-5">
+      <button id="loadRideTelemetry" class="border rounded-xl px-4 py-2">
+        Load telemetry samples
+      </button>
+      <div id="rideTelemetryResult" class="mt-4 text-sm text-slate-500"></div>
+    </div>
+  `;
+
+  $("rideModal").classList.remove("hidden");
+  $("rideModal").classList.add("flex");
+
+  $("loadRideTelemetry").addEventListener("click", async () => {
+    $("rideTelemetryResult").textContent =
+      "Loading telemetry…";
+
+    const { data, error } =
+      await supabaseClient
+        .from("telemetry_logs")
+        .select("*")
+        .eq("ride_id", ride.id)
+        .order("recorded_at", { ascending: true })
+        .limit(5000);
+
+    if (error) {
+      $("rideTelemetryResult").textContent =
+        "Could not load telemetry: " + error.message;
+      return;
+    }
+
+    $("rideTelemetryResult").textContent =
+      `${data.length} telemetry samples loaded.`;
+  });
+}
+
+function closeRideModal() {
+  $("rideModal").classList.add("hidden");
+  $("rideModal").classList.remove("flex");
+}
+
+/* ============================================================
+   CSV export
+============================================================ */
+
+function csvEscape(value) {
+  if (value === null || value === undefined) return "";
+  const s = String(value);
+  return '"' + s.replaceAll('"', '""') + '"';
+}
+
+function exportHistoryCSV() {
+  if (!ridesCache.length) {
+    showToast("No ride data available for export.", "error");
+    return;
+  }
+
+  const columns = [
+    "created_at",
+    "ride_mode",
+    "rider_name",
+    "rider_weight_kg",
+    "slope_deg",
+    "duration_seconds",
+    "distance_km",
+    "avg_speed_kmh",
+    "max_speed_kmh",
+    "energy_used_wh",
+    "efficiency_wh_km",
+    "start_battery_pct",
+    "end_battery_pct",
+    "max_motor_temp",
+    "max_mosfet_temp",
+    "ride_label"
+  ];
+
+  const rows = [
+    columns.join(","),
+    ...ridesCache.map(r =>
+      columns.map(c => csvEscape(r[c])).join(",")
+    )
+  ];
+
+  const blob =
+    new Blob([rows.join("\n")], {
+      type: "text/csv;charset=utf-8;"
+    });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+
+  a.href = url;
+  a.download =
+    "smart_electric_skateboard_ride_history.csv";
+
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+
+  showToast("CSV exported.", "success");
+}
+
+/* ============================================================
+   Analytics
+============================================================ */
+
+function mean(values) {
+  const v = values.filter(
+    x => x !== null && Number.isFinite(Number(x))
+  );
+
+  return v.length
+    ? v.reduce((a,b) => a + Number(b), 0) / v.length
+    : 0;
+}
+
+function updateAnalytics() {
+  const data = ridesCache;
+
+  const totalDistance =
+    data.reduce(
+      (sum, r) => sum + Number(r.distance_km || 0),
+      0
+    );
+
+  const totalEnergy =
+    data.reduce(
+      (sum, r) => sum + Number(r.energy_used_wh || 0),
+      0
+    );
+
+  const topSpeed =
+    data.length
+      ? Math.max(
+          ...data.map(r =>
+            Number(r.max_speed_kmh || 0)
+          )
+        )
+      : 0;
+
+  $("analyticsDistance").textContent =
+    totalDistance.toFixed(2) + " km";
+
+  $("analyticsRides").textContent =
+    data.length;
+
+  $("analyticsTopSpeed").textContent =
+    topSpeed.toFixed(2) + " km/h";
+
+  $("analyticsEnergy").textContent =
+    totalEnergy.toFixed(2) + " Wh";
+
+  $("meanDistance").textContent =
+    mean(data.map(r => r.distance_km)).toFixed(3) + " km";
+
+  const meanDurationSeconds =
+    mean(data.map(r => r.duration_seconds));
+
+  $("meanDuration").textContent =
+    fmtDuration(meanDurationSeconds);
+
+  const efficiencyDenominator =
+    data.reduce(
+      (s,r) => s + Number(r.distance_km || 0),
+      0
+    );
+
+  const weightedEfficiency =
+    efficiencyDenominator > 0
+      ? totalEnergy / efficiencyDenominator
+      : 0;
+
+  $("weightedEfficiency").textContent =
+    weightedEfficiency.toFixed(3) + " Wh/km";
+
+  const batteryDrops = data
+    .filter(
+      r =>
+        r.start_battery_pct != null &&
+        r.end_battery_pct != null
+    )
+    .map(
+      r =>
+        Number(r.start_battery_pct) -
+        Number(r.end_battery_pct)
+    );
+
+  $("meanBatteryDrop").textContent =
+    batteryDrops.length
+      ? mean(batteryDrops).toFixed(2) + " percentage points"
+      : "—";
+
+  updateModeCharts(data);
+  updateTrendChart(data);
+  updateWeightChart(data);
+}
+
+function destroyChart(name) {
+  if (charts[name]) {
+    charts[name].destroy();
+    charts[name] = null;
+  }
+}
+
+function makeBarChart(id, labels, datasets) {
+  return new Chart($(id), {
+    type: "bar",
+    data: {
+      labels,
+      datasets
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+function updateModeCharts(data) {
+  const modes = ["beginner", "normal", "pro"];
+
+  const distance = modes.map(mode =>
+    data
+      .filter(r => r.ride_mode === mode)
+      .reduce(
+        (s,r) => s + Number(r.distance_km || 0),
+        0
+      )
+  );
+
+  const efficiency = modes.map(mode => {
+    const rows =
+      data.filter(r => r.ride_mode === mode);
+
+    return mean(
+      rows.map(r => r.efficiency_wh_km)
+    );
+  });
+
+  const speed = modes.map(mode => {
+    const rows =
+      data.filter(r => r.ride_mode === mode);
+
+    return mean(
+      rows.map(r => r.avg_speed_kmh)
+    );
+  });
+
+  destroyChart("modeDistance");
+  destroyChart("modeEfficiency");
+  destroyChart("modeSpeed");
+
+  charts.modeDistance =
+    makeBarChart(
+      "modeDistanceChart",
+      modes,
+      [{
+        label: "Distance (km)",
+        data: distance
+      }]
+    );
+
+  charts.modeEfficiency =
+    makeBarChart(
+      "modeEfficiencyChart",
+      modes,
+      [{
+        label: "Mean efficiency (Wh/km)",
+        data: efficiency
+      }]
+    );
+
+  charts.modeSpeed =
+    makeBarChart(
+      "modeSpeedChart",
+      modes,
+      [{
+        label: "Mean speed (km/h)",
+        data: speed
+      }]
+    );
+}
+
+function updateTrendChart(data) {
+  const ordered = [...data].reverse();
+
+  destroyChart("efficiencyTrend");
+
+  charts.efficiencyTrend =
+    new Chart($("efficiencyTrendChart"), {
+      type: "line",
+      data: {
+        labels: ordered.map(
+          (_,i) => "Ride " + (i + 1)
+        ),
+        datasets: [{
+          label: "Efficiency (Wh/km)",
+          data: ordered.map(
+            r => Number(r.efficiency_wh_km || 0)
+          ),
+          tension: .2
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+}
+
+function updateWeightChart(data) {
+  const weights =
+    [...new Set(
+      data
+        .map(r => Number(r.rider_weight_kg))
+        .filter(Number.isFinite)
+    )].sort((a,b) => a-b);
+
+  const values =
+    weights.map(weight => {
+      const rows =
+        data.filter(
+          r => Number(r.rider_weight_kg) === weight
+        );
+
+      return mean(
+        rows.map(r => r.efficiency_wh_km)
+      );
+    });
+
+  destroyChart("weightComparison");
+
+  charts.weightComparison =
+    makeBarChart(
+      "weightComparisonChart",
+      weights.map(w => w + " kg"),
+      [{
+        label: "Mean efficiency (Wh/km)",
+        data: values
+      }]
+    );
+}
+
+/* ============================================================
+   Timers / stale telemetry
+============================================================ */
+
+setInterval(() => {
+  if (!lastTelemetryAt) {
+    $("telemetryAge").textContent = "—";
+    return;
+  }
+
+  const ageMs = Date.now() - lastTelemetryAt;
+  const age = ageMs / 1000;
+
+  $("telemetryAge").textContent =
+    age.toFixed(1) + " s";
+
+  if (age > 3) {
+    $("dashboardTelemetry").textContent =
+      "Stale";
+
+    $("telemetryAge").className =
+      "text-red-600";
+  } else {
+    $("telemetryAge").className =
+      "";
+
+    if (latestTelemetry) {
+      $("dashboardTelemetry").textContent =
+        latestTelemetry.telemetry_valid
+          ? "Telemetry OK"
+          : "Invalid";
+    }
+  }
+
+  if (activeRide) {
+    const elapsed =
+      (Date.now() - rideStartTime) / 1000;
+
+    $("rideDuration").textContent =
+      fmtDuration(elapsed);
+
+    $("dashboardDuration").textContent =
+      fmtDuration(elapsed);
+
+    if (age > 3) {
+      $("rideStatus").textContent =
+        "Telemetry stale. New ride samples are not being accepted until telemetry resumes.";
+    }
+  }
+}, 500);
+
+/* ============================================================
+   Event listeners
+============================================================ */
+
+$("connectBtn").addEventListener(
+  "click",
+  connectBLE
+);
+
+$("disconnectBtn").addEventListener(
+  "click",
+  disconnectBLE
+);
+
+$("startRideBtn").addEventListener(
+  "click",
+  startRide
+);
+
+$("endRideBtn").addEventListener(
+  "click",
+  endRide
+);
+
+$("clearLiveCharts").addEventListener(
+  "click",
+  clearLiveCharts
+);
+
+$("refreshHistory").addEventListener(
+  "click",
+  loadRides
+);
+
+$("exportHistory").addEventListener(
+  "click",
+  exportHistoryCSV
+);
+
+$("historySearch").addEventListener(
+  "input",
+  applyHistoryFilters
+);
+
+$("historyModeFilter").addEventListener(
+  "change",
+  applyHistoryFilters
+);
+
+$("historyDateFilter").addEventListener(
+  "change",
+  applyHistoryFilters
+);
+
+$("clearHistoryFilters").addEventListener(
+  "click",
+  () => {
+    $("historySearch").value = "";
+    $("historyModeFilter").value = "";
+    $("historyDateFilter").value = "";
+    applyHistoryFilters();
+  }
+);
+
+$("closeModal").addEventListener(
+  "click",
+  closeRideModal
+);
+
+$("rideModal").addEventListener(
+  "click",
+  e => {
+    if (e.target === $("rideModal")) {
+      closeRideModal();
+    }
+  }
+);
+
+$("copyRaw").addEventListener(
+  "click",
+  async () => {
+    try {
+      await navigator.clipboard.writeText(
+        latestRawText || ""
+      );
+      showToast("Raw telemetry copied.", "success");
+    } catch (e) {
+      showToast("Could not copy telemetry.", "error");
+    }
+  }
+);
+
+/* ============================================================
+   Browser unload protection
+============================================================ */
+
+window.addEventListener(
+  "beforeunload",
+  event => {
+    if (activeRide) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  }
+);
+
+/* ============================================================
+   Initialization
+============================================================ */
+
+initializeLiveCharts();
+
+checkSupabase();
+
+loadRides().then(() => {
+  updateAnalytics();
+});
+
 </script>
 </body>
 </html>
