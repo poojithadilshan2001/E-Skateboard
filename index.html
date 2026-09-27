@@ -829,7 +829,8 @@ async function connectBLE() {
 
     bleDevice = await navigator.bluetooth.requestDevice({
       filters: [
-        { name: BLE_DEVICE_NAME }
+        { name: BLE_DEVICE_NAME },
+        { namePrefix: "SKATEBOARD" }
       ],
       optionalServices: [BLE_SERVICE_UUID]
     });
@@ -896,6 +897,7 @@ async function disconnectBLE() {
 }
 
 function handleBLEDisconnected() {
+  bleRxBuffer = "";
   bleCharacteristic = null;
   bleServer = null;
 
@@ -924,11 +926,40 @@ function handleBLEDisconnected() {
    Telemetry receive
 ============================================================ */
 
-function handleTelemetryNotification(event) {
-  try {
-    const decoder = new TextDecoder("utf-8");
-    const text = decoder.decode(event.target.value);
+let bleRxBuffer = "";
+const bleDecoder = new TextDecoder("utf-8");
 
+/*
+  Receiver sends each JSON packet as one line ending with "\n".
+  If the BLE MTU is small the line arrives in several pieces,
+  so pieces are joined here until a full line is available.
+*/
+function handleTelemetryNotification(event) {
+  bleRxBuffer += bleDecoder.decode(event.target.value, { stream: true });
+
+  // Safety: drop garbage if buffer grows without a newline
+  if (bleRxBuffer.length > 4000) bleRxBuffer = "";
+
+  let nl;
+  while ((nl = bleRxBuffer.indexOf("\n")) >= 0) {
+    const line = bleRxBuffer.slice(0, nl).trim();
+    bleRxBuffer = bleRxBuffer.slice(nl + 1);
+    if (line) processTelemetryLine(line);
+  }
+
+  // Backward compatible: old firmware sent a full JSON with no newline
+  const pending = bleRxBuffer.trim();
+  if (pending.startsWith("{") && pending.endsWith("}")) {
+    try {
+      JSON.parse(pending);
+      bleRxBuffer = "";
+      processTelemetryLine(pending);
+    } catch (e) { /* wait for more pieces */ }
+  }
+}
+
+function processTelemetryLine(text) {
+  try {
     latestRawText = text;
 
     const raw = JSON.parse(text);
@@ -948,7 +979,7 @@ function handleTelemetryNotification(event) {
     }
 
   } catch (error) {
-    console.error("Telemetry parsing error:", error);
+    console.error("Telemetry parsing error:", error, text);
     $("dashboardTelemetry").textContent = "Parse error";
   }
 }
